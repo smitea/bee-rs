@@ -1,0 +1,44 @@
+[package]
+name = "bee-core"
+version = "0.1.0"
+authors = ["xiao.huang@enmotech.com <xiao.huang@enmotech.com>"]
+edition = "2018"
+
+[dependencies]
+parking_lot         = {version = "0.11"}
+async-std           = {version = "1.6.2"}
+fallible-iterator   = {optional = true, version = "0.2"}
+bincode             = {optional = true, version = "*" }
+rusqlite            = {optional = true, git = "https://github.com/rusqlite/rusqlite.git", features = ["blob","vtab","functions","column_decltype"]}
+rlua                = {optional = true, version = "*"}
+ssh                 = {optional = true, git = "https://github.com/sMitea/ssh.git"}
+heim                = {optional = true, git = "https://github.com/sMitea/heim.git", features = ["host","memory","cpu","disk","runtime-async-std"]}
+humantime           = {optional = true, version = "*"}
+encoding            = {optional = true, version = "*"}
+
+[features]
+default     = [ 
+    "sql",
+    "lua",
+    "sqlplus",
+    "bash",
+    "perl",
+    "sftp",
+    "file",
+    "bssh",
+]
+
+# Scripts
+sql         =   ["fallible-iterator", "bincode", "rusqlite"]
+lua         =   ["rlua"]
+
+# decodes
+sqlplus     =   []
+bash        =   []
+perl        =   []
+
+# inputs
+sftp        =   ["ssh"]
+file        =   []
+bssh        =   ["ssh"]
+agent       =   ["heim","humantime","encoding"]

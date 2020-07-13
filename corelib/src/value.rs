@@ -1,0 +1,190 @@
+use crate::Error;
+use std::{convert::TryFrom, fmt::Display, str::FromStr};
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum Value {
+    String(String),
+    Integer(i64),
+    Number(f64),
+    Boolean(bool),
+    Bytes(Vec<u8>),
+    Nil,
+}
+
+impl Eq for Value {}
+
+macro_rules! impl_into_value {
+    ($variant:ident : $T:ty) => {
+        impl From<$T> for Value {
+            #[inline]
+            fn from(val: $T) -> Value {
+                Value::$variant(val.into())
+            }
+        }
+    };
+}
+
+macro_rules! impl_try_from {
+    ($variant:ident : $T:ty , $type_s: expr) => {
+        impl TryFrom<Value> for $T {
+            type Error = Error;
+            fn try_from(value: Value) -> Result<Self, Self::Error> {
+                if let Value::$variant(val) = value {
+                    return Ok(val as $T);
+                } else {
+                    return Err(Error::invalid_type(format!(
+                        "failed to parse {} for {:?}",
+                        $type_s, value
+                    )));
+                }
+            }
+        }
+    };
+}
+
+impl_into_value!(Integer: i64);
+impl_into_value!(Integer: i32);
+impl_into_value!(Integer: i16);
+impl_into_value!(Integer: i8);
+impl_into_value!(Integer: u32);
+impl_into_value!(Integer: u16);
+impl_into_value!(Integer: u8);
+impl_into_value!(Number: f64);
+impl_into_value!(Number: f32);
+impl_into_value!(String: &str);
+impl_into_value!(Boolean: bool);
+impl_into_value!(Bytes: Vec<u8>);
+
+impl_try_from!(Integer: i64, "i64");
+impl_try_from!(Integer: i32, "i32");
+impl_try_from!(Integer: i16, "i16");
+impl_try_from!(Integer: i8, "i8");
+impl_try_from!(Integer: u32, "u32");
+impl_try_from!(Integer: u16, "u16");
+impl_try_from!(Integer: u8, "u8");
+impl_try_from!(Number: f64, "f64");
+impl_try_from!(Number: f32, "f32");
+impl_try_from!(Boolean: bool, "bool");
+impl_try_from!(Bytes: Vec<u8>, "bytes");
+
+impl Into<Value> for () {
+    fn into(self) -> Value {
+        Value::Nil
+    }
+}
+
+impl TryFrom<Value> for String {
+    type Error = Error;
+    fn try_from(value: Value) -> Result<Self, Self::Error> {
+        let val = match value {
+            Value::String(val) => val,
+            Value::Integer(val) => val.to_string(),
+            Value::Number(val) => val.to_string(),
+            Value::Boolean(val) => val.to_string(),
+            Value::Bytes(val) => String::from_utf8(val)?,
+            Value::Nil => "Nil".to_string(),
+        };
+        Ok(val)
+    }
+}
+
+impl From<String> for Value {
+    fn from(val: String) -> Self {
+        Value::String(val)
+    }
+}
+
+impl FromStr for Value {
+    type Err = Error;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let value = if s.contains("false") || s.contains("true") {
+            s.parse::<bool>()
+                .map(|v| Value::Boolean(v))
+                .unwrap_or(Value::String(s.to_owned()))
+        } else if s.contains(".") {
+            s.parse::<f64>()
+                .map(|v| Value::Number(v))
+                .unwrap_or(Value::String(s.to_owned()))
+        } else if s == "null" || s == "NULL" || s == "Null" {
+            Value::Nil
+        } else if s == "nil" || s == "Nil" {
+            Value::Nil
+        } else {
+            s.parse::<i64>()
+                .map(|v| Value::Integer(v))
+                .unwrap_or(Value::String(s.to_owned()))
+        };
+
+        Ok(value)
+    }
+}
+
+impl Display for Value {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match &self {
+            Value::String(val) => write!(f, "{}", val),
+            Value::Integer(val) => write!(f, "{}", val),
+            Value::Number(val) => write!(f, "{}", val),
+            Value::Boolean(val) => write!(f, "{}", val),
+            Value::Bytes(val) => write!(f, "{:?}", val),
+            Value::Nil => write!(f, "Nil"),
+        }
+    }
+}
+
+#[test]
+fn from_test() {
+    let val = "10".parse::<Value>().unwrap();
+    assert_eq!(Value::Integer(10), val);
+
+    let val = "false".parse::<Value>().unwrap();
+    assert_eq!(Value::Boolean(false), val);
+
+    let val = "true".parse::<Value>().unwrap();
+    assert_eq!(Value::Boolean(true), val);
+
+    let val = "10.01".parse::<Value>().unwrap();
+    assert_eq!(Value::Number(10.01), val);
+
+    let val = "10._".parse::<Value>().unwrap();
+    assert_eq!(Value::String("10._".to_string()), val);
+
+    let val = "Name".parse::<Value>().unwrap();
+    assert_eq!(Value::String("Name".to_string()), val);
+
+    let val = "Nil".parse::<Value>().unwrap();
+    assert_eq!(Value::Nil, val);
+
+    let val = "nil".parse::<Value>().unwrap();
+    assert_eq!(Value::Nil, val);
+
+    let val = "Null".parse::<Value>().unwrap();
+    assert_eq!(Value::Nil, val);
+
+    let val = "NULL".parse::<Value>().unwrap();
+    assert_eq!(Value::Nil, val);
+
+    let val = "null".parse::<Value>().unwrap();
+    assert_eq!(Value::Nil, val);
+}
+
+#[test]
+fn from_value() {
+    let val: Value = 10.into();
+    assert_eq!(Value::Integer(10), val);
+
+    let val: Value = 10.0.into();
+    assert_eq!(Value::Number(10.0), val);
+
+    let val: Value = false.into();
+    assert_eq!(Value::Boolean(false), val);
+
+    let val: Value = "Name".into();
+    assert_eq!(Value::String("Name".to_owned()), val);
+
+    let val: Value = ().into();
+    assert_eq!(Value::Nil, val);
+
+    let val: Value = vec![0x09_u8, 0x12].into();
+    assert_eq!(Value::Bytes(vec![0x09_u8, 0x12]), val);
+}
