@@ -1,6 +1,5 @@
 use crate::{DataSource, Error, Instance, State};
-use parking_lot::*;
-use std::{io::BufRead, io::Cursor, process::Command, sync::Arc, time::Duration};
+use std::{io::BufRead, io::Cursor, process::Command};
 
 struct CMDSource;
 
