@@ -1,4 +1,5 @@
 use std::fmt::Display;
+use url::ParseError;
 
 #[macro_export]
 macro_rules! CODE {
@@ -8,12 +9,10 @@ macro_rules! CODE {
 }
 
 pub const OK: i32 = 0;
-pub const ERROR: i32 = 1;
 
 const INTERNAL: i32 = 2;
 const INVALID: i32 = 3;
 const PARAM: i32 = 4;
-const AUTH: i32 = 5;
 const CHANNEL: i32 = 6;
 const IO: i32 = 7;
 const LOCKED: i32 = 8;
@@ -22,7 +21,8 @@ const OTHER: i32 = 9;
 
 const INVALID_TYPE: i32 = CODE!(INVALID, 1);
 const INVALID_UTF8: i32 = CODE!(INVALID, 2);
-const INVALID_PATH: i32 = CODE!(INVALID, 3);
+const INVALID_URL: i32 = CODE!(INVALID, 3);
+const INVALID_PATH: i32 = CODE!(INVALID, 4);
 
 const PARAM_INDEX: i32 = CODE!(PARAM, 1);
 
@@ -69,6 +69,9 @@ macro_rules! from_code {
 impl Error {
     from_code!(invalid_type, INVALID_TYPE, String);
     from_code!(index_range, PARAM_INDEX, usize);
+    from_code!(index_param, PARAM_INDEX, &str);
+    from_code!(io_timeout, IO_TIMEDOUT, String);
+    from_code!(lock_faild, LOCKED, String);
 
     pub(crate) fn new<T: ToString>(code: i32, msg: T) -> Self {
         Self {
@@ -128,7 +131,9 @@ impl<T> From<std::sync::mpsc::SendError<T>> for Error {
     }
 }
 from_error!(INVALID_UTF8, std::string::FromUtf8Error);
+from_error!(INVALID_UTF8, std::str::Utf8Error);
 from_error!(INVALID_PATH, std::convert::Infallible);
+from_error!(INVALID_URL, ParseError);
 
 impl From<std::io::Error> for Error {
     fn from(err: std::io::Error) -> Self {

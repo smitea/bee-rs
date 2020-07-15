@@ -94,10 +94,17 @@ impl Iterator for Response {
     }
 }
 
-pub fn new_req(args: Args, timeout: Option<Duration>) -> (Request, Statement) {
+pub fn new_req(args: Args, timeout: Duration) -> (Request, Statement) {
     let (tx, rx) = sync_channel(CHANNEL_SIZE);
     let request = Request::new(args, tx);
-    let statement = Statement::new(timeout, rx);
+    let statement = Statement::new(Some(timeout), rx);
+    return (request, statement);
+}
+
+pub fn new_req_none(args: Args) -> (Request, Statement) {
+    let (tx, rx) = sync_channel(CHANNEL_SIZE);
+    let request = Request::new(args, tx);
+    let statement = Statement::new(None, rx);
     return (request, statement);
 }
 

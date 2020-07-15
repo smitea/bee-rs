@@ -1,9 +1,9 @@
 use crate::Value;
-use crate::{new_req, Args, DataSource, Response, Row};
+use crate::{Args, DataSource, Response, Row, new_req_none};
 use async_std::task;
 use rusqlite::ffi;
-use rusqlite::vtab::{Context, CreateVTab, IndexInfo, VTab, VTabConnection, VTabCursor, Values};
-use rusqlite::{types::Null, Error, Result};
+use rusqlite::vtab::{Context, CreateVTab, IndexInfo, VTab, VTabConnection, VTabCursor, Values, dequote};
+use rusqlite::{Error, Result};
 use std::marker::PhantomData;
 use std::{os::raw::c_int, sync::Arc};
 
@@ -37,6 +37,7 @@ unsafe impl<'vtab> VTab<'vtab> for SQLTab {
         let args = &args[3..];
         for arg in args {
             let arg = std::str::from_utf8(arg)?.trim();
+            let arg = dequote(arg);
             a.push(arg.parse::<Value>()?);
         }
         let ds = match aux {
@@ -45,7 +46,7 @@ unsafe impl<'vtab> VTab<'vtab> for SQLTab {
         };
 
         let data_source: Arc<Box<dyn DataSource>> = ds.clone();
-        let (request, statement) = new_req(a, None);
+        let (request, statement) = new_req_none(a);
 
         let _ = task::spawn(async move {
             let rs = data_source.collect(&request);
@@ -138,12 +139,12 @@ unsafe impl VTabCursor for SQLTabCursor<'_> {
                 let row = rs?;
                 self.next = Some(row);
                 self.eof = false;
+                self.rowid += 1;
             }
             None => {
-                self.eof = false;
+                self.eof = true;
             }
         }
-        self.rowid += 1;
         Ok(())
     }
 

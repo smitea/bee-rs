@@ -9,6 +9,7 @@ mod request;
 mod row;
 mod state;
 mod statement;
+mod instance;
 
 // Plugin
 mod connect;
@@ -28,7 +29,11 @@ pub use state::State;
 
 pub use datasource::DataSource;
 pub use request::Request;
+pub use request::Promise;
 pub use session::Session;
 pub use statement::Statement;
 pub use statement::Response;
 pub use statement::new_req;
+pub use statement::new_req_none;
+pub use instance::Instance;
+pub use datasource::Driver;

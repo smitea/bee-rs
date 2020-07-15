@@ -23,12 +23,11 @@ impl Session for SqliteSession {
         let aux: Option<Arc<Box<dyn crate::DataSource>>> = Some(Arc::new(ds));
         let lock = self.connection.lock();
         lock.create_module(name.as_str(), read_only_module::<SQLTab>(), aux)?;
-
         Ok(())
     }
 
     fn query(&self, script: &str, timeout: Duration) -> Result<Statement, Error> {
-        let (request, response) = new_req(Args::new(), Some(timeout));
+        let (request, response) = new_req(Args::new(), timeout);
         let conn = self.connection.clone();
         let script = script.to_string();
         task::spawn(async move {
@@ -111,7 +110,13 @@ pub fn new_session() -> Result<SqliteSession, Error> {
 mod test {
     use super::new_session;
     use crate::{Columns, DataSource, DataType, Row, Session, State, Value};
-    use std::time::Duration;
+    use std::{
+        io::BufRead,
+        io::Cursor,
+        io::Lines,
+        process::{Command, Output},
+        time::Duration,
+    };
 
     struct TestSource;
 
@@ -141,10 +146,10 @@ mod test {
     }
 
     #[test]
-    fn test() {
+    fn test_array() {
         let session = new_session().unwrap();
-        let source = TestSource;
-        session.register_source(Box::new(source)).unwrap();
+        let source1 = TestSource;
+        session.register_source(Box::new(source1)).unwrap();
 
         let _ = session
             .update(
@@ -161,15 +166,13 @@ mod test {
         let columns = resp.columns();
         assert_eq!(10, columns.len());
         println!("columns - {:?}", columns);
-        println!("response ...");
 
         let mut index = 0;
         for rs in resp {
             let _ = rs.unwrap();
             index += 1;
         }
-        assert_eq!(index, 10001);
-        println!("response ok.");
+        assert_eq!(index, 10000);
 
         let _ = session
             .update("DROP TABLE vtab", Duration::from_secs(10))
