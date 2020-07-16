@@ -5,11 +5,11 @@ mod value;
 mod args;
 mod columns;
 mod datatype;
+mod instance;
 mod request;
 mod row;
 mod state;
 mod statement;
-mod instance;
 
 // Plugin
 mod connect;
@@ -28,12 +28,16 @@ pub use row::Row;
 pub use state::State;
 
 pub use datasource::DataSource;
-pub use request::Request;
+pub use datasource::Driver;
+pub use extends::new_session;
+pub use instance::Instance;
 pub use request::Promise;
+pub use request::Request;
 pub use session::Session;
-pub use statement::Statement;
-pub use statement::Response;
 pub use statement::new_req;
 pub use statement::new_req_none;
-pub use instance::Instance;
-pub use datasource::Driver;
+pub use statement::Response;
+pub use statement::Statement;
+
+#[macro_use]
+extern crate log;

@@ -1,4 +1,4 @@
-use crate::{DataSource, Error, Instance, State};
+use crate::{columns, Columns, DataSource, Error, Instance, Promise, State};
 use std::{io::BufRead, io::Cursor, process::Command};
 
 struct CMDSource;
@@ -8,11 +8,14 @@ impl DataSource for CMDSource {
         "cmd"
     }
 
-    fn collect(&self, request: &crate::Request) -> Result<(), crate::Error> {
-        let mut promise = request.head(crate::columns![String: "line"])?;
-        let args = request.get_args();
+    fn columns(&self) -> Columns {
+        columns![String: "line"]
+    }
+
+    fn collect(&self, promise: &mut Promise) -> Result<(), crate::Error> {
+        let args = promise.get_args();
         let cmd: String = args.get(0)?;
-        return run_cmd(cmd, &mut promise);
+        return run_cmd(cmd, promise);
     }
 }
 
@@ -28,19 +31,19 @@ fn run_cmd(cmd: String, promise: &mut crate::Promise) -> Result<(), crate::Error
     } else {
         let msg = String::from_utf8(output.stderr).unwrap_or("".to_owned());
         return Err(crate::Error::from(std::io::Error::new(
-            std::io::ErrorKind::InvalidData,
+            std::io::ErrorKind::UnexpectedEof,
             format!("exit code: {:?} - {}", output.status, msg),
         )));
     }
 }
 
-pub fn new_session(_instance: &Instance) -> Result<Box<dyn DataSource>, Error> {
+pub fn new_datasource(_instance: &Instance) -> Result<Box<dyn DataSource>, Error> {
     Ok(Box::new(CMDSource))
 }
 
 #[cfg(test)]
 mod test {
-    use super::new_session;
+    use super::new_datasource;
     use crate::{args, new_req, new_req_none, Instance};
     use std::time::Duration;
 
@@ -49,10 +52,12 @@ mod test {
         let instance: Instance = "cmd://127.0.0.1:49160/bee".parse().unwrap();
         let args = args!["echo hellword"];
         let (req, stat) = new_req_none(args);
-        let ds = new_session(&instance).unwrap();
+        let ds = new_datasource(&instance).unwrap();
 
         std::thread::spawn(move || {
-            if let Err(err) = ds.collect(&req) {
+            let cols = ds.columns();
+            let mut promise = req.head(cols).unwrap();
+            if let Err(err) = ds.collect(&mut promise) {
                 let _ = req.error(err);
             }
         });
@@ -78,10 +83,38 @@ mod test {
         let instance: Instance = "cmd://127.0.0.1:49160/bee".parse().unwrap();
         let args = args!["sleep 3"];
         let (req, stat) = new_req(args, Duration::from_secs(2));
-        let ds = new_session(&instance).unwrap();
+        let ds = new_datasource(&instance).unwrap();
 
         std::thread::spawn(move || {
-            if let Err(err) = ds.collect(&req) {
+            let cols = ds.columns();
+            let mut promise = req.head(cols).unwrap();
+            if let Err(err) = ds.collect(&mut promise) {
+                println!("has a err - {:?}", err);
+                let _ = req.error(err);
+            }
+        });
+
+        let resp = stat.wait().unwrap();
+        println!("columns - {:?}", resp.columns());
+        for rs in resp {
+            println!("rs - {:?}", rs);
+            let _ = rs.unwrap();
+        }
+    }
+
+    #[test]
+    #[should_panic(expected = "sh: hhscpp: command not found")]
+    fn cmd_not_found_invalid() {
+        // 262
+        let instance: Instance = "cmd://127.0.0.1:49160/bee".parse().unwrap();
+        let args = args!["hhscpp qwd12dc"];
+        let (req, stat) = new_req(args, Duration::from_secs(2));
+        let ds = new_datasource(&instance).unwrap();
+
+        std::thread::spawn(move || {
+            let cols = ds.columns();
+            let mut promise = req.head(cols).unwrap();
+            if let Err(err) = ds.collect(&mut promise) {
                 println!("has a err - {:?}", err);
                 let _ = req.error(err);
             }

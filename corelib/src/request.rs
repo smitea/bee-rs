@@ -8,6 +8,7 @@ pub struct Request {
 
 pub struct Promise<'a> {
     columns: Option<Columns>,
+    args: &'a Args,
     tx: &'a SyncSender<State>,
 }
 
@@ -20,6 +21,7 @@ impl Request {
         self.tx.send(State::from(columns))?;
         Ok(Promise {
             tx: &self.tx,
+            args: &self.args,
             columns: None,
         })
     }
@@ -36,12 +38,11 @@ impl Request {
     }
 }
 
-impl Drop for Request{
+impl Drop for Request {
     fn drop(&mut self) {
         let _ = self.tx.send(State::Ok);
         drop(&self.tx);
     }
-    
 }
 
 impl<'a> Promise<'a> {
@@ -54,5 +55,10 @@ impl<'a> Promise<'a> {
         }
         self.tx.send(state)?;
         Ok(())
+    }
+
+    #[inline(always)]
+    pub fn get_args(&self) -> &Args {
+        &self.args
     }
 }

@@ -126,7 +126,8 @@ fn test() {
     assert_eq!(Some(22), instance.port);
     assert_eq!("bee".to_owned(), instance.resource);
 
-    assert_eq!(1000, instance.get_param("connect_timeout").unwrap());
+    let timeout: i32 = instance.get_param("connect_timeout").unwrap();
+    assert_eq!(1000_i32, timeout);
 }
 
 #[test]

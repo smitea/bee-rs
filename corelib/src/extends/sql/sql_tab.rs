@@ -1,8 +1,9 @@
 use crate::Value;
-use crate::{Args, DataSource, Response, Row, new_req_none};
-use async_std::task;
+use crate::{new_req_none, Args, Columns, DataSource, Request, Response, Row};
 use rusqlite::ffi;
-use rusqlite::vtab::{Context, CreateVTab, IndexInfo, VTab, VTabConnection, VTabCursor, Values, dequote};
+use rusqlite::vtab::{
+    dequote, Context, CreateVTab, IndexInfo, VTab, VTabConnection, VTabCursor, Values,
+};
 use rusqlite::{Error, Result};
 use std::marker::PhantomData;
 use std::{os::raw::c_int, sync::Arc};
@@ -11,8 +12,38 @@ use std::{os::raw::c_int, sync::Arc};
 pub struct SQLTab {
     /// Base class. Must be first
     base: ffi::sqlite3_vtab,
-    response: Response,
+    ds: Arc<Box<dyn DataSource>>,
+    args: Args,
     offset_first_row: usize,
+}
+
+impl SQLTab {
+    fn collect(&self) -> Result<Response, Error> {
+        let data_source: Arc<Box<dyn DataSource>> = self.ds.clone();
+        let cols = self.ds.columns();
+        let (request, statement) = new_req_none(self.args.clone());
+        // 异步执行，可
+        std::thread::spawn(move || {
+            if let Err(err) = collect(data_source, &request, cols) {
+                println!("has a err - {}", err);
+                let _ = request.error(err);
+            }
+        });
+
+        let resp = statement.wait()?;
+        Ok(resp)
+    }
+}
+
+fn collect(
+    data_source: Arc<Box<dyn DataSource>>,
+    request: &Request,
+    cols: Columns,
+) -> Result<(), crate::Error> {
+    let mut promise = request.head(cols)?;
+
+    data_source.collect(&mut promise)?;
+    Ok(())
 }
 
 unsafe impl<'vtab> VTab<'vtab> for SQLTab {
@@ -25,7 +56,8 @@ unsafe impl<'vtab> VTab<'vtab> for SQLTab {
     }
 
     fn open(&self) -> Result<SQLTabCursor<'_>> {
-        Ok(SQLTabCursor::new(&self.response))
+        let response = self.collect()?;
+        Ok(SQLTabCursor::new(response))
     }
 
     fn connect(
@@ -45,22 +77,8 @@ unsafe impl<'vtab> VTab<'vtab> for SQLTab {
             None => return Err(Error::ModuleError("No datasource".to_owned())),
         };
 
-        let data_source: Arc<Box<dyn DataSource>> = ds.clone();
-        let (request, statement) = new_req_none(a);
-
-        let _ = task::spawn(async move {
-            let rs = data_source.collect(&request);
-            if let Err(err) = rs {
-                if let Err(err) = request.error(err) {
-                    println!("err - {}", err);
-                }
-            }
-        });
-
-        let resp = statement.wait()?;
-        let columns = resp.columns();
-
         let name = ds.name();
+        let columns = ds.columns();
 
         let mut sql = format!("CREATE TABLE {}(", name);
 
@@ -86,8 +104,9 @@ unsafe impl<'vtab> VTab<'vtab> for SQLTab {
 
         let vtab = SQLTab {
             base: ffi::sqlite3_vtab::default(),
-            response: resp,
+            ds: ds.clone(),
             offset_first_row: 0,
+            args: a,
         };
 
         Ok((sql, vtab))
@@ -99,7 +118,7 @@ impl<'vtab> CreateVTab<'vtab> for SQLTab {}
 #[repr(C)]
 pub struct SQLTabCursor<'vtab> {
     base: ffi::sqlite3_vtab_cursor,
-    reader: &'vtab Response,
+    reader: Response,
     next: Option<Row>,
     rowid: usize,
     eof: bool,
@@ -107,7 +126,7 @@ pub struct SQLTabCursor<'vtab> {
 }
 
 impl SQLTabCursor<'_> {
-    fn new<'vtab>(reader: &'vtab Response) -> SQLTabCursor<'vtab> {
+    fn new<'vtab>(reader: Response) -> SQLTabCursor<'vtab> {
         SQLTabCursor {
             base: ffi::sqlite3_vtab_cursor::default(),
             reader,
@@ -127,7 +146,8 @@ unsafe impl VTabCursor for SQLTabCursor<'_> {
         _args: &Values<'_>,
     ) -> Result<()> {
         self.rowid = 0;
-        self.next()
+        self.next()?;
+        Ok(())
     }
 
     fn next(&mut self) -> Result<()> {
@@ -136,6 +156,7 @@ unsafe impl VTabCursor for SQLTabCursor<'_> {
 
         match option {
             Some(rs) => {
+                println!("rs - {:?}",rs);
                 let row = rs?;
                 self.next = Some(row);
                 self.eof = false;

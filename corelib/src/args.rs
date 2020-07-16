@@ -1,7 +1,7 @@
 use crate::{Error, Value};
 use std::convert::TryFrom;
 
-#[derive(Debug)]
+#[derive(Debug,Clone)]
 pub struct Args {
     values: Vec<Value>,
 }

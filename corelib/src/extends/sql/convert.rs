@@ -61,7 +61,7 @@ impl From<SQLiteError> for Error {
 
 impl From<Error> for SQLiteError {
     fn from(err: Error) -> Self {
-        rusqlite::Error::ToSqlConversionFailure(Box::new(err))
+        rusqlite::Error::UserFunctionError(Box::new(err))
     }
 }
 
@@ -104,5 +104,11 @@ impl FromSql for Value {
             ValueRef::Blob(val) => Value::Bytes(Vec::from(val)),
         };
         return Ok(val);
+    }
+}
+
+impl From<csv::Error> for Error {
+    fn from(err: csv::Error) -> Self {
+        Error::invalid_type(err.to_string())
     }
 }

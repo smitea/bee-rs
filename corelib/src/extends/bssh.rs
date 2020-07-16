@@ -1,4 +1,4 @@
-use crate::{columns, row, DataSource, Error, Instance, State, CODE};
+use crate::{columns, row, Columns, DataSource, Error, Instance, Promise, State, CODE};
 use parking_lot::*;
 use ssh::Session;
 use std::{sync::Arc, time::Duration};
@@ -25,13 +25,17 @@ impl DataSource for SSHDataSource {
         "ssh"
     }
 
-    fn collect(&self, request: &crate::Request) -> Result<(), crate::Error> {
-        let args = request.get_args();
+    fn columns(&self) -> Columns {
+        columns![String: "line"]
+    }
 
+    fn collect(&self, promise: &mut Promise) -> Result<(), crate::Error> {
+        let args = promise.get_args();
+        println!("ssh({:?})",args);
         let script: String = args.get(0)?;
         let timeout: u16 = args.get(1)?;
 
-        run_cmd(self.session.clone(), script, timeout, request)?;
+        run_cmd(self.session.clone(), script, timeout, promise)?;
         Ok(())
     }
 }
@@ -40,11 +44,12 @@ pub fn run_cmd(
     session: Arc<Mutex<Session>>,
     script: String,
     timeout: u16,
-    request: &crate::Request,
+    promise: &mut Promise,
 ) -> Result<(), crate::Error> {
-    let mut promise = request.head(columns![String: "line"])?;
-
     let mut lock = session.lock();
+
+    println!("run cmd - {}",script);
+
     let mut channel = lock.channel_new()?;
     channel.open_session()?;
 
@@ -106,7 +111,7 @@ pub fn run_cmd(
     return Ok(());
 }
 
-pub fn new_session(instance: &Instance) -> Result<Box<dyn DataSource>, Error> {
+pub fn new_datasource(instance: &Instance) -> Result<Box<dyn DataSource>, Error> {
     let protocol: String = instance.get_param("protocol")?;
 
     let host = instance.get_host().ok_or(Error::index_param("host"))?;
@@ -143,7 +148,7 @@ pub fn new_session(instance: &Instance) -> Result<Box<dyn DataSource>, Error> {
 
 #[cfg(test)]
 mod test {
-    use super::new_session;
+    use super::new_datasource;
     use crate::{args, new_req_none, Instance};
 
     #[test]
@@ -154,10 +159,12 @@ mod test {
                 .unwrap();
         let args = args!["echo hellword", 10];
         let (req, stat) = new_req_none(args);
-        let ds = new_session(&instance).unwrap();
+        let ds = new_datasource(&instance).unwrap();
 
         std::thread::spawn(move || {
-            if let Err(err) = ds.collect(&req) {
+            let cols = ds.columns();
+            let mut promise = req.head(cols).unwrap();
+            if let Err(err) = ds.collect(&mut promise) {
                 let _ = req.error(err);
             }
         });
@@ -177,7 +184,7 @@ mod test {
     }
 
     #[test]
-    #[should_panic(expected = "cmd - [sleep 3] is timeout")]
+    #[should_panic(expected = "[sleep 3] is timeout")]
     fn cmd_timeout_invalid() {
         // 3335
         let instance: Instance =
@@ -186,10 +193,12 @@ mod test {
                 .unwrap();
         let args = args!["sleep 3", 2];
         let (req, stat) = new_req_none(args);
-        let ds = new_session(&instance).unwrap();
+        let ds = new_datasource(&instance).unwrap();
 
         std::thread::spawn(move || {
-            if let Err(err) = ds.collect(&req) {
+            let cols = ds.columns();
+            let mut promise = req.head(cols).unwrap();
+            if let Err(err) = ds.collect(&mut promise) {
                 println!("has a err - {:?}", err);
                 let _ = req.error(err);
             }
@@ -207,11 +216,8 @@ mod test {
     #[should_panic(expected = "protocol")]
     fn param_invalid_protocol() {
         // 260
-        let instance: Instance =
-            "ssh://oracle:admin@127.0.0.1:12/bee"
-                .parse()
-                .unwrap();
-        let _ = new_session(&instance).unwrap();
+        let instance: Instance = "ssh://oracle:admin@127.0.0.1:12/bee".parse().unwrap();
+        let _ = new_datasource(&instance).unwrap();
     }
 
     #[test]
@@ -222,29 +228,29 @@ mod test {
             "ssh://oracle@127.0.0.1:49160/bee?connect_timeout=5&protocol=user_pwd"
                 .parse()
                 .unwrap();
-        let _ = new_session(&instance).unwrap();
+        let _ = new_datasource(&instance).unwrap();
     }
 
     #[test]
     #[should_panic(expected = "username")]
     fn param_invalid_username() {
         // 260
-        let instance: Instance =
-            "ssh://127.0.0.1:49160/bee?connect_timeout=5&protocol=user_pwd"
-                .parse()
-                .unwrap();
-        let _ = new_session(&instance).unwrap();
+        let instance: Instance = "ssh://127.0.0.1:49160/bee?connect_timeout=5&protocol=user_pwd"
+            .parse()
+            .unwrap();
+        let _ = new_datasource(&instance).unwrap();
     }
 
     #[test]
-    #[should_panic(expected = "Failed to resolve hostname test (nodename nor servname provided, or not known)")]
+    #[should_panic(
+        expected = "Failed to resolve hostname test (nodename nor servname provided, or not known)"
+    )]
     fn param_invalid_host() {
         // 192009
-        let instance: Instance =
-            "ssh://oracle:admin@test:12/bee?protocol=user_pwd"
-                .parse()
-                .unwrap();
-        let _ = new_session(&instance).unwrap();
+        let instance: Instance = "ssh://oracle:admin@test:12/bee?protocol=user_pwd"
+            .parse()
+            .unwrap();
+        let _ = new_datasource(&instance).unwrap();
     }
 
     #[test]
@@ -255,7 +261,7 @@ mod test {
             "ssh://oracle:admin@127.0.0.1:12/bee?connect_timeout=5&protocol=user_pwd"
                 .parse()
                 .unwrap();
-        let _ = new_session(&instance).unwrap();
+        let _ = new_datasource(&instance).unwrap();
     }
 
     #[test]
@@ -266,7 +272,7 @@ mod test {
             "ssh://oracle:admin@127:12/bee?connect_timeout=5&protocol=user_pwd"
                 .parse()
                 .unwrap();
-        let _ = new_session(&instance).unwrap();
+        let _ = new_datasource(&instance).unwrap();
     }
 
     #[test]
@@ -277,7 +283,7 @@ mod test {
             "ssh://oracle:admin@127.0.0.1:49160/bee?connect_timeout=5&protocol=pub_key&public_key=~/.ssh/scrape_ssh.pub"
                 .parse()
                 .unwrap();
-        let _ = new_session(&instance).unwrap();
+        let _ = new_datasource(&instance).unwrap();
     }
 
     #[test]
@@ -288,6 +294,6 @@ mod test {
             "ssh://oracle:none@127.0.0.1:49160/bee?connect_timeout=5&protocol=user_pwd"
                 .parse()
                 .unwrap();
-        let _ = new_session(&instance).unwrap();
+        let _ = new_datasource(&instance).unwrap();
     }
 }
