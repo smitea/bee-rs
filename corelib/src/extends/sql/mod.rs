@@ -287,13 +287,17 @@ mod test {
     }
 
     #[test]
-    fn test_iostat_c() {
+    fn test_iostat_xk() {
         use std::time::Duration;
 
         // Linux 4.19.76-linuxkit (cb9607b8c76e) 	07/17/20 	_x86_64_	(1 CPU)
-        //
         // avg-cpu:  %user   %nice %system %iowait  %steal   %idle
-        //            1.57    0.00    1.16    0.12    0.00   97.15
+        //            0.68    0.00    0.72    0.05    0.00   98.55
+        // Device:         rrqm/s   wrqm/s     r/s     w/s    rkB/s    wkB/s avgrq-sz avgqu-sz   await r_await w_await  svctm  %util
+        // scd0              0.00     0.00    0.23    0.00    16.64     0.00   147.46     0.00    0.60    0.60    0.00   0.46   0.01
+        // sda               0.00     0.63    1.00    1.74    24.87    16.51    30.23     0.00    0.48    0.39    0.53   0.33   0.09
+        // scd1              0.00     0.00    0.00    0.00     0.01     0.00    36.57     0.00    0.14    0.14    0.00   0.14   0.00
+        // scd2              0.00     0.00    0.11    0.00     9.03     0.00   160.65     0.00    0.70    0.70    0.00   0.66   0.01
         let session: Box<dyn Session> = crate::new_session(
             "ssh://oracle:admin@127.0.0.1:49160/bee?connect_timeout=5&protocol=user_pwd",
         )
@@ -302,12 +306,10 @@ mod test {
         let statement = session
             .query(
                 r#"
-                SELECT  get(output,0,'REAL',0.0) as user,
-                        get(output,1,'REAL',0.0) as nice,
-                        get(output,2,'REAL',0.0) as system,
-                        get(output,3,'REAL',0.0) as iowait,
-                        get(output,5,'REAL',0.0) as idle 
-                FROM (SELECT split_space(line) as output,line_num FROM ssh('iostat -c',10) WHERE line_num = 3)
+                SELECT  get(output,0,'TEXT',0.0) as device,
+                        get(output,12,'REAL',0.0) as svctm,
+                        get(output,13,'REAL',0.0) as util
+                FROM (SELECT split_space(line) as output FROM ssh('iostat -xk',10) WHERE line_num > 3)
             "#,
                 Duration::from_secs(4),
             )
@@ -315,9 +317,128 @@ mod test {
 
         let resp = statement.wait().unwrap();
         let columns = resp.columns();
-        assert_eq!(5, columns.len());
+        assert_eq!(3, columns.len());
         assert_eq!(
-            &columns![Number: "user", Number: "nice", Number: "system", Number: "iowait", Number: "idle"],
+            &columns![String: "device", Number: "svctm", Number: "util"],
+            columns
+        );
+        println!("columns - {:?}",columns);
+        let mut index = 0;
+        for rs in resp {
+            let row = rs.unwrap();
+            println!("row - {:?}",row);
+            index += 1;
+        }
+        assert_eq!(index, 4);
+    }
+
+    #[test]
+    fn test_vmstat_12() {
+        use std::time::Duration;
+
+        // procs -----------memory---------- ---swap-- -----io---- -system-- ------cpu-----
+        // r  b   swpd   free   buff  cache   si   so    bi    bo   in   cs us sy id wa st
+        // 1  0      0 855268  33484 741560    0    0    51    17  196  502  1  1 99  0  0
+        // 0  0      0 855260  33484 741592    0    0     0    16  213  557  1  1 98  0  0
+        let session: Box<dyn Session> = crate::new_session(
+            "ssh://oracle:admin@127.0.0.1:49160/bee?connect_timeout=5&protocol=user_pwd",
+        )
+        .unwrap();
+
+        let statement = session
+            .query(
+                r#"
+                SELECT  get(output,12,'REAL',0.0) as user,
+                        get(output,13,'REAL',0.0) as system,
+                        get(output,15,'REAL',0.0) as iowait,
+                        get(output,14,'REAL',0.0) as idle 
+                FROM (SELECT split_space(line) as output FROM ssh('vmstat 1 2',10) WHERE line_num > 2)
+            "#,
+                Duration::from_secs(4),
+            )
+            .unwrap();
+
+        let resp = statement.wait().unwrap();
+        let columns = resp.columns();
+        assert_eq!(4, columns.len());
+        assert_eq!(
+            &columns![Number: "user", Number: "system", Number: "iowait", Number: "idle"],
+            columns
+        );
+        println!("columns - {:?}",columns);
+        let mut index = 0;
+        for rs in resp {
+            let row = rs.unwrap();
+            println!("row - {:?}",row);
+            index += 1;
+        }
+        assert_eq!(index, 1);
+    }
+
+    #[test]
+    fn test_swapon_s(){
+        use std::time::Duration;
+
+        // Filename				Type		Size	Used	Priority
+        // /swap                file		1048572	0	    -2
+        let session: Box<dyn Session> = crate::new_session(
+            "ssh://oracle:admin@127.0.0.1:49160/bee?connect_timeout=5&protocol=user_pwd",
+        )
+        .unwrap();
+
+        let statement = session
+            .query(
+                r#"
+                SELECT file_name,total,used, total - used as avali FROM (
+                    SELECT  get(output,0,'TEXT',0) as file_name,
+                        get(output,2,'INT',0) as total,
+                        get(output,3,'INT',0) as used
+                    FROM (SELECT split_space(line) as output FROM ssh('swapon -s',10) WHERE line_num > 0)
+                )
+            "#,
+                Duration::from_secs(4),
+            )
+            .unwrap();
+
+        let resp = statement.wait().unwrap();
+        let columns = resp.columns();
+        assert_eq!(4, columns.len());
+        assert_eq!(
+            &columns![String: "file_name", Integer: "total", Integer: "used", Integer: "avali"],
+            columns
+        );
+        println!("columns - {:?}",columns);
+        let mut index = 0;
+        for rs in resp {
+            let row = rs.unwrap();
+            println!("row - {:?}",row);
+            index += 1;
+        }
+        assert_eq!(index, 1);
+    }
+
+    #[test]
+    fn test_os(){
+        use std::time::Duration;
+        let session: Box<dyn Session> = crate::new_session(
+            "ssh://oracle:admin@127.0.0.1:49160/bee?connect_timeout=5&protocol=user_pwd",
+        )
+        .unwrap();
+
+        let statement = session
+            .query(
+                r#"
+                SELECT line as os FROM ssh('perl -e "print($^O)"',10)
+            "#,
+                Duration::from_secs(4),
+            )
+            .unwrap();
+
+        let resp = statement.wait().unwrap();
+        let columns = resp.columns();
+        assert_eq!(1, columns.len());
+        assert_eq!(
+            &columns![String: "os"],
             columns
         );
         println!("columns - {:?}",columns);

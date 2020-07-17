@@ -52,8 +52,6 @@ pub fn run_cmd(
 ) -> Result<(), crate::Error> {
     let mut lock = session.lock();
 
-    println!("run cmd - {}",script);
-
     let mut channel = lock.channel_new()?;
     channel.open_session()?;
 
@@ -62,10 +60,11 @@ pub fn run_cmd(
     // 结束标示
     let mark_end = format!("{}#", MARK);
 
-    let mark_start_cmd = format!("echo '\n{}'", mark_start);
-    let mark_end_cmd = format!("echo '{}\n'", mark_end);
-    let real_script = format!("{};{};{};", mark_start_cmd, script, mark_end_cmd);
+    let mark_start_cmd = format!("echo '{}'", mark_start);
+    let mark_end_cmd = format!("echo '{}'", mark_end);
+    let real_script = format!("{};echo '';{};echo '';{};", mark_start_cmd, script, mark_end_cmd);
 
+    println!("run cmd - {}",real_script);
     channel.request_exec(real_script.as_bytes())?;
 
     let mut stdout = channel.stdout();
@@ -92,6 +91,7 @@ pub fn run_cmd(
     }
 
     channel.send_eof()?;
+    println!("output - {}",buffer);
     let lines = buffer.lines();
     let mut has_start = false;
 
@@ -108,7 +108,7 @@ pub fn run_cmd(
             return Ok(());
         }
 
-        if has_start {
+        if has_start && !line.trim().is_empty() {
             promise.commit(State::from(row![line,index as i64]))?;
             index += 1;
         }
