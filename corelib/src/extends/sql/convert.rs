@@ -31,37 +31,43 @@ pub(crate) const INVALIDCOLUMNCOUNT: i32 = CODE!(BASE_CODE, 22);
 
 impl From<SQLiteError> for Error {
     fn from(err: SQLiteError) -> Self {
-        match err{
-            SQLiteError::SqliteFailure(code, msg) => Error::other(code.extended_code, msg.unwrap_or("".to_owned())),
-            SQLiteError::SqliteSingleThreadedMode => Error::other(SQLITESINGLETHREADEDMODE,"sqlite is single of thread mode"),
-            SQLiteError::FromSqlConversionFailure(index, d, err) => Error::other(FROMSQLCONVERSIONFAILURE,format!("failed to SQL parser at column[{}] and type[{}] ,the reason : {}", index, d, err)),
-            SQLiteError::IntegralValueOutOfRange(index, value) => Error::other(INTEGRALVALUEOUTOFRANGE,format!("integral value is out of range at column[{}] and value[{}]",index,value)), 
-            SQLiteError::Utf8Error(err) => Error::other(UTF8ERROR,err),
-            SQLiteError::NulError(err) => Error::other(NULERROR,err),
-            SQLiteError::InvalidParameterName(name) => Error::other(INVALIDPARAMETERNAME,format!("invalid params[{}]", name)),
-            SQLiteError::InvalidPath(path) => Error::other(INVALIDPATH,format!("invalid path: {:?}",path)), 
-            SQLiteError::ExecuteReturnedResults => Error::other(EXECUTERETURNEDRESULTS,format!("has a `execute` call returns rows")),
-            SQLiteError::QueryReturnedNoRows =>  Error::other(QUERYRETURNEDNOROWS,format!("has a query that was expected to return at least one row (e.g.,for `query_row`) did not return any")),
-            SQLiteError::InvalidColumnIndex(index) =>  Error::other(INVALIDCOLUMNINDEX,format!("invalid columnIndex[{}]",index)),
-            SQLiteError::InvalidColumnName(name) =>  Error::other(INVALIDCOLUMNNAME,format!("invalid columnName[{}]",name)),
-            SQLiteError::InvalidColumnType(index, name, d) =>  Error::other(INVALIDCOLUMNTYPE,format!("invalid columnType[{}] at {} and type: {:?}",name,index, d)),
-            SQLiteError::StatementChangedRows(rows) =>  Error::other(STATEMENTCHANGEDROWS,format!("has a query that was expected to insert one row did not insert {} rows",rows)),
-            SQLiteError::ToSqlConversionFailure(err) =>  Error::other(TOSQLCONVERSIONFAILURE,err),
-            SQLiteError::InvalidQuery =>  Error::other(INVALIDQUERY,format!("SQL is not a `SELECT`, is not read-only")),
-            SQLiteError::MultipleStatement =>  Error::other(MULTIPLESTATEMENT,format!("SQL contains multiple statements")),
-            SQLiteError::UserFunctionError(err) => Error::other(USERFUNCTIONERROR,err),
-            SQLiteError::InvalidFunctionParameterType(index, d) => Error::other(INVALIDFUNCTIONPARAMETERTYPE,format!("The params[{}] must be a {}",index,d)),
-            SQLiteError::UnwindingPanic => Error::other(UNWINDINGPANIC,"UnwindingPanic"),
-            SQLiteError::GetAuxWrongType => Error::other(GETAUXWRONGTYPE,"GetAuxWrongType"),
-            SQLiteError::InvalidParameterCount(index, count) => Error::other(INVALIDPARAMETERCOUNT,format!("invalid params[{}] and count = {}", index,count )),
-            _ => Error::other(OTHER,"")
+        let msg = err.to_string();
+        match msg.parse::<Error>(){
+            Ok(err) => err,
+            Err(_) => {
+                match err{
+                    SQLiteError::SqliteFailure(code, msg) => Error::other(code.extended_code, msg.unwrap_or("".to_owned())),
+                    SQLiteError::SqliteSingleThreadedMode => Error::other(SQLITESINGLETHREADEDMODE,"sqlite is single of thread mode"),
+                    SQLiteError::FromSqlConversionFailure(index, d, err) => Error::other(FROMSQLCONVERSIONFAILURE,format!("failed to SQL parser at column[{}] and type[{}] ,the reason : {}", index, d, err)),
+                    SQLiteError::IntegralValueOutOfRange(index, value) => Error::other(INTEGRALVALUEOUTOFRANGE,format!("integral value is out of range at column[{}] and value[{}]",index,value)), 
+                    SQLiteError::Utf8Error(err) => Error::other(UTF8ERROR,err),
+                    SQLiteError::NulError(err) => Error::other(NULERROR,err),
+                    SQLiteError::InvalidParameterName(name) => Error::other(INVALIDPARAMETERNAME,format!("invalid params[{}]", name)),
+                    SQLiteError::InvalidPath(path) => Error::other(INVALIDPATH,format!("invalid path: {:?}",path)), 
+                    SQLiteError::ExecuteReturnedResults => Error::other(EXECUTERETURNEDRESULTS,format!("has a `execute` call returns rows")),
+                    SQLiteError::QueryReturnedNoRows =>  Error::other(QUERYRETURNEDNOROWS,format!("has a query that was expected to return at least one row (e.g.,for `query_row`) did not return any")),
+                    SQLiteError::InvalidColumnIndex(index) =>  Error::other(INVALIDCOLUMNINDEX,format!("invalid columnIndex[{}]",index)),
+                    SQLiteError::InvalidColumnName(name) =>  Error::other(INVALIDCOLUMNNAME,format!("invalid columnName[{}]",name)),
+                    SQLiteError::InvalidColumnType(index, name, d) =>  Error::other(INVALIDCOLUMNTYPE,format!("invalid columnType[{}] at {} and type: {:?}",name,index, d)),
+                    SQLiteError::StatementChangedRows(rows) =>  Error::other(STATEMENTCHANGEDROWS,format!("has a query that was expected to insert one row did not insert {} rows",rows)),
+                    SQLiteError::ToSqlConversionFailure(err) =>  Error::other(TOSQLCONVERSIONFAILURE,err),
+                    SQLiteError::InvalidQuery =>  Error::other(INVALIDQUERY,format!("SQL is not a `SELECT`, is not read-only")),
+                    SQLiteError::MultipleStatement =>  Error::other(MULTIPLESTATEMENT,format!("SQL contains multiple statements")),
+                    SQLiteError::UserFunctionError(err) => Error::other(USERFUNCTIONERROR,err),
+                    SQLiteError::InvalidFunctionParameterType(index, d) => Error::other(INVALIDFUNCTIONPARAMETERTYPE,format!("The params[{}] must be a {}",index,d)),
+                    SQLiteError::UnwindingPanic => Error::other(UNWINDINGPANIC,"UnwindingPanic"),
+                    SQLiteError::GetAuxWrongType => Error::other(GETAUXWRONGTYPE,"GetAuxWrongType"),
+                    SQLiteError::InvalidParameterCount(index, count) => Error::other(INVALIDPARAMETERCOUNT,format!("invalid params[{}] and count = {}", index,count )),
+                    _ => Error::other(OTHER,"")
+                }
+            }
         }
     }
 }
 
 impl From<Error> for SQLiteError {
     fn from(err: Error) -> Self {
-        rusqlite::Error::UserFunctionError(Box::new(err))
+        rusqlite::Error::ModuleError(err.to_string())
     }
 }
 

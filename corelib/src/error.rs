@@ -1,4 +1,4 @@
-use std::fmt::Display;
+use std::{fmt::Display, str::FromStr};
 use url::ParseError;
 
 #[macro_export]
@@ -134,6 +134,7 @@ from_error!(INVALID_UTF8, std::string::FromUtf8Error);
 from_error!(INVALID_UTF8, std::str::Utf8Error);
 from_error!(INVALID_PATH, std::convert::Infallible);
 from_error!(INVALID_URL, ParseError);
+from_error!(INVALID_TYPE, std::num::ParseIntError);
 
 impl From<std::io::Error> for Error {
     fn from(err: std::io::Error) -> Self {
@@ -166,7 +167,20 @@ unsafe impl Sync for Error {}
 
 impl Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "#{} - {}", self.code, self.msg)
+        write!(f, "{},{}", self.code, self.msg)
+    }
+}
+
+impl FromStr for Error {
+    type Err = Error;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let values: Vec<&str> = s.split(",").collect();
+        if let (Some(code), Some(msg)) = (values.get(0), values.get(1)) {
+            let code: i32 = code.parse()?;
+            Ok(Self { code, msg: msg.to_string() })
+        } else {
+            Ok(Error::internal(OTHER, s))
+        }
     }
 }
 

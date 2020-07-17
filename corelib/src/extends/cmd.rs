@@ -102,7 +102,6 @@ mod test {
         let resp = stat.wait().unwrap();
         println!("columns - {:?}", resp.columns());
         for rs in resp {
-            println!("rs - {:?}", rs);
             let _ = rs.unwrap();
         }
     }
@@ -127,7 +126,6 @@ mod test {
         let resp = stat.wait().unwrap();
         println!("columns - {:?}", resp.columns());
         for rs in resp {
-            println!("rs - {:?}", rs);
             let _ = rs.unwrap();
         }
     }

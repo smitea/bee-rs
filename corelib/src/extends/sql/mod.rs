@@ -60,25 +60,28 @@ fn commit_statement(
     let mut rows = s.query(NO_PARAMS)?;
 
     // 尝试获取一行数据，才能决定列的类型
-    let mut promise = if let Ok(Some(row)) = rows.next() {
-        let new_row = get_row(row)?;
-        let mut cols = Columns::new();
-        for i in 0..row.column_count() {
-            let name = row.column_name(i)?;
-            let value = row.get::<usize, Value>(i)?;
+    let mut promise = match rows.next()? {
+        Some(row) => {
+            let new_row = get_row(row)?;
+            let mut cols = Columns::new();
+            for i in 0..row.column_count() {
+                let name = row.column_name(i)?;
+                let value = row.get::<usize, Value>(i)?;
 
-            cols.push(name, DataType::from(value));
+                cols.push(name, DataType::from(value));
+            }
+
+            let mut promise = request.head(cols)?;
+            promise.commit(State::from(new_row))?;
+            promise
         }
-
-        let mut promise = request.head(cols)?;
-        promise.commit(State::from(new_row))?;
-        promise
-    } else {
-        let sql_columns = rows.columns().ok_or(Error::invalid(
-            INVALIDCOLUMNCOUNT,
-            format!("can't find columns for sql[{}]", script),
-        ))?;
-        request.head(get_columns(sql_columns))?
+        None => {
+            let sql_columns = rows.columns().ok_or(Error::invalid(
+                INVALIDCOLUMNCOUNT,
+                format!("can't find columns"),
+            ))?;
+            request.head(get_columns(sql_columns))?
+        }
     };
 
     while let Ok(Some(rs)) = rows.next() {
@@ -231,11 +234,11 @@ mod test {
             &columns![String: "filesystem", Integer: "total", Integer: "used", Integer: "avail"],
             columns
         );
-        println!("columns - {:?}",columns);
+        println!("columns - {:?}", columns);
         let mut index = 0;
         for rs in resp {
             let row = rs.unwrap();
-            println!("row - {:?}",row);
+            println!("row - {:?}", row);
             index += 1;
         }
         assert_eq!(index, 3);
@@ -276,11 +279,11 @@ mod test {
             &columns![Integer: "used", Integer: "free", Integer: "shared", Integer: "buffers", Integer: "cached"],
             columns
         );
-        println!("columns - {:?}",columns);
+        println!("columns - {:?}", columns);
         let mut index = 0;
         for rs in resp {
             let row = rs.unwrap();
-            println!("row - {:?}",row);
+            println!("row - {:?}", row);
             index += 1;
         }
         assert_eq!(index, 1);
@@ -322,11 +325,11 @@ mod test {
             &columns![String: "device", Number: "svctm", Number: "util"],
             columns
         );
-        println!("columns - {:?}",columns);
+        println!("columns - {:?}", columns);
         let mut index = 0;
         for rs in resp {
             let row = rs.unwrap();
-            println!("row - {:?}",row);
+            println!("row - {:?}", row);
             index += 1;
         }
         assert_eq!(index, 4);
@@ -365,18 +368,18 @@ mod test {
             &columns![Number: "user", Number: "system", Number: "iowait", Number: "idle"],
             columns
         );
-        println!("columns - {:?}",columns);
+        println!("columns - {:?}", columns);
         let mut index = 0;
         for rs in resp {
             let row = rs.unwrap();
-            println!("row - {:?}",row);
+            println!("row - {:?}", row);
             index += 1;
         }
         assert_eq!(index, 1);
     }
 
     #[test]
-    fn test_swapon_s(){
+    fn test_swapon_s() {
         use std::time::Duration;
         // Filename				Type		Size	Used	Priority
         // /swap                file		1048572	0	    -2
@@ -406,18 +409,18 @@ mod test {
             &columns![String: "file_name", Integer: "total", Integer: "used", Integer: "avali"],
             columns
         );
-        println!("columns - {:?}",columns);
+        println!("columns - {:?}", columns);
         let mut index = 0;
         for rs in resp {
             let row = rs.unwrap();
-            println!("row - {:?}",row);
+            println!("row - {:?}", row);
             index += 1;
         }
         assert_eq!(index, 1);
     }
 
     #[test]
-    fn test_os(){
+    fn test_os() {
         use std::time::Duration;
         let session: Box<dyn Session> = crate::new_session(
             "ssh://oracle:admin@127.0.0.1:49160/bee?connect_timeout=5&protocol=user_pwd",
@@ -436,15 +439,12 @@ mod test {
         let resp = statement.wait().unwrap();
         let columns = resp.columns();
         assert_eq!(1, columns.len());
-        assert_eq!(
-            &columns![String: "os"],
-            columns
-        );
-        println!("columns - {:?}",columns);
+        assert_eq!(&columns![String: "os"], columns);
+        println!("columns - {:?}", columns);
         let mut index = 0;
         for rs in resp {
             let row = rs.unwrap();
-            println!("row - {:?}",row);
+            println!("row - {:?}", row);
             index += 1;
         }
         assert_eq!(index, 1);
