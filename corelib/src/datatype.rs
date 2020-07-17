@@ -1,4 +1,4 @@
-use crate::Error;
+use crate::{Error, Value};
 use std::{fmt::Display, str::FromStr};
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
@@ -60,6 +60,19 @@ impl Display for DataType {
     }
 }
 
+impl From<Value> for DataType {
+    fn from(val: Value) -> Self {
+        match val {
+            Value::String(_) => DataType::String,
+            Value::Integer(_) => DataType::Integer,
+            Value::Number(_) => DataType::Number,
+            Value::Boolean(_) => DataType::Boolean,
+            Value::Bytes(_) => DataType::Bytes,
+            Value::Nil => DataType::Nil,
+        }
+    }
+}
+
 #[test]
 fn test() {
     let t: DataType = "String".parse().unwrap();
@@ -81,7 +94,6 @@ fn test() {
     assert_eq!("Integer".to_owned(), t.to_string());
     let t: DataType = "u8".parse().unwrap();
     assert_eq!("Integer".to_owned(), t.to_string());
-
 
     let t: DataType = "Number".parse().unwrap();
     assert_eq!("Number".to_owned(), t.to_string());

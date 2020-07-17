@@ -1,4 +1,4 @@
-use crate::{columns, row, DataSource, Error, Promise, State};
+use crate::{columns, row, DataSource, Error, Promise, State, Columns};
 use async_std::task::block_on;
 use heim::memory::{memory, Memory};
 
@@ -8,7 +8,12 @@ impl DataSource for MemoryUsage {
     fn name(&self) -> &str {
         "memory_usage"
     }
-    fn columns(&self) -> crate::Columns {
+
+    fn args(&self) -> Columns {
+        columns![]
+    }
+
+    fn columns(&self) -> Columns {
         columns![
             Integer: "used_bytes",
             Integer: "total_bytes",

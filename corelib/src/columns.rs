@@ -1,7 +1,7 @@
 use crate::DataType;
 use std::ops::Deref;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone,Eq, PartialEq)]
 pub struct Columns {
     pub(crate) values: Vec<(String, DataType)>,
 }
@@ -10,6 +10,10 @@ impl Columns {
     #[inline(always)]
     pub fn new() -> Self {
         Self { values: vec![] }
+    }
+
+    pub fn get_name(&self, index: usize) -> Option<&String> {
+        self.values.get(index).map(|val| &val.0)
     }
 
     pub fn get_index<T: Into<String>>(&self, name: T) -> Option<usize> {
@@ -50,6 +54,10 @@ impl Default for Columns {
 
 #[macro_export]
 macro_rules! columns {
+    [] => {{
+        $crate::Columns::new()
+    }};
+
     [$($type_d: ident : $name: expr),*] => {{
         let mut cols: $crate::Columns = $crate::Columns::new();
         $(

@@ -12,7 +12,7 @@ log                 = {version = "*"}
 csv                 = {optional = true, version = "*"}
 fallible-iterator   = {optional = true, version = "0.2"}
 bincode             = {optional = true, version = "*" }
-rusqlite            = {optional = true, git = "https://github.com/rusqlite/rusqlite.git", features = ["blob","vtab","functions","column_decltype"]}
+rusqlite            = {optional = true, git = "https://github.com/rusqlite/rusqlite.git", features = ["blob","vtab","functions","column_decltype","bundled"]}
 ssh                 = {optional = true, git = "https://github.com/sMitea/ssh.git"}
 heim                = {optional = true, git = "https://github.com/sMitea/heim.git", features = ["host","memory","cpu","disk","runtime-async-std"]}
 humantime           = {optional = true, version = "*"}

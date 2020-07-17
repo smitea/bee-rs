@@ -8,6 +8,11 @@ impl DataSource for OSInfo {
     fn name(&self) -> &str {
         "os_info"
     }
+
+    fn args(&self) -> Columns {
+        columns![]
+    }
+
     fn columns(&self) -> Columns {
         columns![
             String : "os_type",
@@ -23,7 +28,7 @@ impl DataSource for OSInfo {
             platform.release(),
             platform.hostname()
         ]))?;
-        
+
         Ok(())
     }
 }

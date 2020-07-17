@@ -25,6 +25,10 @@ impl DataSource for SSHDataSource {
         "ssh"
     }
 
+    fn args(&self) -> Columns {
+        columns![String: "script", Integer: "timeout"]
+    }
+
     fn columns(&self) -> Columns {
         columns![String: "line"]
     }
@@ -199,7 +203,6 @@ mod test {
             let cols = ds.columns();
             let mut promise = req.head(cols).unwrap();
             if let Err(err) = ds.collect(&mut promise) {
-                println!("has a err - {:?}", err);
                 let _ = req.error(err);
             }
         });

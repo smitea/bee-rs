@@ -3,13 +3,13 @@ mod functions;
 mod sql_tab;
 
 use crate::Error;
-use crate::{new_req, Args, Columns, DataType, Request, Row, Session, State, Statement, Value};
+use crate::{new_req, Args, Columns, DataType, Request, Session, State, Statement, Value};
 use async_std::task;
 use convert::INVALIDCOLUMNCOUNT;
 use functions::init_functions;
 use parking_lot::*;
-use rusqlite::vtab::read_only_module;
-use rusqlite::{Connection, Result, NO_PARAMS};
+use rusqlite::vtab::eponymous_only_module;
+use rusqlite::{Column, Connection, Result, Row, NO_PARAMS};
 use sql_tab::SQLTab;
 use std::{sync::Arc, time::Duration};
 
@@ -22,7 +22,8 @@ impl Session for SqliteSession {
         let name = ds.name().to_string();
         let aux: Option<Arc<Box<dyn crate::DataSource>>> = Some(Arc::new(ds));
         let lock = self.connection.lock();
-        lock.create_module(name.as_str(), read_only_module::<SQLTab>(), aux)?;
+        lock.create_module(name.as_str(), eponymous_only_module::<SQLTab>(), aux)?;
+        println!("register ds - {}", name);
         Ok(())
     }
 
@@ -58,13 +59,46 @@ fn commit_statement(
     let mut s = lock.prepare(script.as_str())?;
     let mut rows = s.query(NO_PARAMS)?;
 
-    let sql_columns = rows.columns().ok_or(Error::invalid(
-        INVALIDCOLUMNCOUNT,
-        format!("can't find columns for sql[{}]", script),
-    ))?;
-    let mut columns = Columns::new();
-    let count = sql_columns.len();
+    // 尝试获取一行数据，才能决定列的类型
+    let mut promise = if let Ok(Some(row)) = rows.next() {
+        let new_row = get_row(row)?;
+        let mut cols = Columns::new();
+        for i in 0..row.column_count() {
+            let name = row.column_name(i)?;
+            let value = row.get::<usize, Value>(i)?;
 
+            cols.push(name, DataType::from(value));
+        }
+
+        let mut promise = request.head(cols)?;
+        promise.commit(State::from(new_row))?;
+        promise
+    } else {
+        let sql_columns = rows.columns().ok_or(Error::invalid(
+            INVALIDCOLUMNCOUNT,
+            format!("can't find columns for sql[{}]", script),
+        ))?;
+        request.head(get_columns(sql_columns))?
+    };
+
+    while let Ok(Some(rs)) = rows.next() {
+        promise.commit(State::from(get_row(rs)?))?;
+    }
+    Ok(())
+}
+
+fn get_row(rs: &Row) -> Result<crate::Row, Error> {
+    let count = rs.column_count();
+    let mut row = crate::Row::new();
+    for i in 0..count {
+        let val = rs.get::<usize, Value>(i)?;
+        row.push(val);
+    }
+    Ok(row)
+}
+
+fn get_columns(sql_columns: Vec<Column>) -> Columns {
+    let mut columns = Columns::new();
     for col in sql_columns {
         let name: &str = col.name();
         let sql_type: Option<&str> = col.decl_type();
@@ -86,17 +120,7 @@ fn commit_statement(
         columns.push(name, t);
     }
 
-    let mut promise = request.head(columns)?;
-
-    while let Ok(Some(rs)) = rows.next() {
-        let mut row = Row::new();
-        for i in 0..count {
-            let val = rs.get::<usize, Value>(i)?;
-            row.push(val);
-        }
-        promise.commit(State::from(row))?
-    }
-    Ok(())
+    columns
 }
 
 pub fn new_session() -> Result<SqliteSession, Error> {
@@ -108,15 +132,17 @@ pub fn new_session() -> Result<SqliteSession, Error> {
 }
 
 mod test {
-    use super::new_session;
     use crate::{columns, row, Columns, DataSource, Promise, Session, State};
-    use std::time::Duration;
 
     struct TestSource;
 
     impl DataSource for TestSource {
         fn name(&self) -> &str {
-            "array"
+            "ARRAY"
+        }
+
+        fn args(&self) -> Columns {
+            columns![Integer: "count"]
         }
 
         fn columns(&self) -> Columns {
@@ -135,22 +161,17 @@ mod test {
 
     #[test]
     fn test_array() {
-        let session = new_session().unwrap();
+        use std::time::Duration;
+
+        let session = super::new_session().unwrap();
         let source1 = TestSource;
         session.register_source(Box::new(source1)).unwrap();
 
         let mut statements = vec![];
 
-        let _ = session
-            .update(
-                "CREATE VIRTUAL TABLE vtab USING array(10)",
-                Duration::from_secs(10),
-            )
-            .unwrap();
-
         for _ in 0..10000 {
             let statement = session
-                .query("SELECT *FROM vtab", Duration::from_secs(10))
+                .query("SELECT *FROM ARRAY(10)", Duration::from_secs(10))
                 .unwrap();
             statements.push(statement);
         }
@@ -166,15 +187,12 @@ mod test {
             }
             assert_eq!(index, 10);
         }
-
-        let _ = session
-            .update("DROP TABLE vtab", Duration::from_secs(10))
-            .unwrap();
     }
 
     #[test]
     fn test_ssh() {
-        env_logger::init();
+        use std::time::Duration;
+
         // Filesystem     1K-blocks    Used Available Use% Mounted on
         // overlay         15312232 9295008   5219684  65% /
         // tmpfs              65536       8     65528   1% /dev
@@ -192,22 +210,15 @@ mod test {
         )
         .unwrap();
 
-        let _ = session
-            .update(
-                "CREATE VIRTUAL TABLE vtab USING ssh('df -k',10)",
-                Duration::from_secs(10),
-            )
-            .unwrap();
-
         let statement = session
             .query(
                 r#"
-                SELECT  
-                    GET(output,0, 'TEXT', '') as filesystem,
-                    GET(output,1, 'INT', 0) as total_bytes,
-                    GET(output,2, 'INT', 0) as used_bytes,
-                    GET(output,3, 'INT', 0) as avail_bytes
-                FROM (SELECT SPLIT_SPACE(line) as output FROM vtab WHERE line NOT LIKE '%Filesystem%')
+                SELECT  get(output,0,'TEXT','') as filesystem,
+                        get(output,1,'INT',0) as total,
+                        get(output,2,'INT',0) as used,
+                        get(output,3,'INT',0) as avail
+                FROM (SELECT split_space(line) as output FROM ssh('df -k',10) 
+                WHERE line NOT LIKE '%Filesystem%' AND line NOT LIKE '%tmp%')
             "#,
                 Duration::from_secs(4),
             )
@@ -216,16 +227,15 @@ mod test {
         let resp = statement.wait().unwrap();
         let columns = resp.columns();
         assert_eq!(4, columns.len());
-        println!("columns - {:?}", columns);
+        assert_eq!(
+            &columns![String: "filesystem", Integer: "total", Integer: "used", Integer: "avail"],
+            columns
+        );
         let mut index = 0;
         for rs in resp {
             let _ = rs.unwrap();
             index += 1;
         }
-        assert_eq!(index, 11);
-
-        let _ = session
-            .update("DROP TABLE vtab", Duration::from_secs(10))
-            .unwrap();
+        assert_eq!(index, 3);
     }
 }

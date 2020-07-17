@@ -19,6 +19,11 @@ impl DataSource for OSBasic {
     fn name(&self) -> &str {
         "os_basic"
     }
+
+    fn args(&self) -> Columns {
+        columns![]
+    }
+
     fn columns(&self) -> Columns {
         columns![
             String  : "host_name",

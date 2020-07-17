@@ -1,4 +1,4 @@
-use crate::{columns, row, DataSource, Error, Promise, State};
+use crate::{columns, row, DataSource, Error, Promise, State, Columns};
 use async_std::task::block_on;
 use std::time::Duration;
 
@@ -9,7 +9,11 @@ impl DataSource for CPUUsage {
         "cpu_usage"
     }
 
-    fn columns(&self) -> crate::Columns {
+    fn args(&self) -> Columns {
+        columns![]
+    }
+
+    fn columns(&self) -> Columns {
         columns![
             Number  : "idle",
             Number  : "user",

@@ -60,7 +60,8 @@ fn get(context: &Context) -> Result<SqliteValue> {
     let output = context.get::<Vec<u8>>(0)?;
     let mut index = context.get::<i32>(1)?;
     let data_type = context.get::<String>(2)?;
-    let default = context.get::<String>(3)?;
+    // 为动态类型
+    let default = context.get::<crate::Value>(3)?.to_string();
 
     let array: Vec<String> = bincode::deserialize(&output)
         .or_else(|err| Err(SQLiteError::ModuleError(format!("{}", err))))?;
@@ -69,11 +70,20 @@ fn get(context: &Context) -> Result<SqliteValue> {
     if index < 0 {
         index = len + index - 1;
     }
-    println!("output - {:?}",array);
     let value = array.get(index as usize).unwrap_or(&default);
-
-    println!("GET - {},{},{},{}",value,index,data_type,default);
     let data_type = data_type.as_str();
+    
+    let rs = parse_value(data_type,value);
+    match rs {
+        Ok(value) => Ok(value),
+        Err(err) => {
+            println!("err - {}",err);
+            Err(err)
+        }
+    }
+}
+
+fn parse_value(data_type: &str, value: &String) -> Result<SqliteValue>{
     let value = match data_type {
         "INT" => {
             let value = value
@@ -90,7 +100,6 @@ fn get(context: &Context) -> Result<SqliteValue> {
         _ => SqliteValue::Text(value.clone()),
     };
 
-    println!("output 2 - {:?}",value);
     Ok(value)
 }
 

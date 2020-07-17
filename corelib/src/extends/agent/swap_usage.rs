@@ -1,4 +1,4 @@
-use crate::{columns, row, DataSource, State};
+use crate::{columns, row, DataSource, State, Columns};
 use async_std::task::block_on;
 use heim::memory::{swap, Swap};
 
@@ -8,7 +8,12 @@ impl DataSource for SWAPUsage {
     fn name(&self) -> &str {
         "swap_usage"
     }
-    fn columns(&self) -> crate::Columns {
+
+    fn args(&self) -> Columns {
+        columns![]
+    }
+
+    fn columns(&self) -> Columns {
         columns![
             Integer : "used_bytes",
             Integer : "total_bytes",
