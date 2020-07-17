@@ -378,7 +378,6 @@ mod test {
     #[test]
     fn test_swapon_s(){
         use std::time::Duration;
-
         // Filename				Type		Size	Used	Priority
         // /swap                file		1048572	0	    -2
         let session: Box<dyn Session> = crate::new_session(
