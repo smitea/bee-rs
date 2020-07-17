@@ -1,10 +1,10 @@
 use crate::Value;
-use crate::{new_req_none, Args, Columns, DataSource, Request, Response, Row};
+use crate::{new_req_none, Args, Columns, DataSource, DataType, Request, Response, Row};
 use rusqlite::ffi;
 use rusqlite::vtab::{
     Context, CreateVTab, IndexConstraintOp, IndexInfo, VTab, VTabConnection, VTabCursor, Values,
 };
-use rusqlite::{types::FromSql, types::FromSqlError, Error, Result};
+use rusqlite::{types::FromSql, Error, Result};
 use std::marker::PhantomData;
 use std::{os::raw::c_int, sync::Arc};
 
@@ -30,6 +30,49 @@ fn collect(
     Ok(())
 }
 
+fn to_sqlite_type<'a>(d_type: DataType) -> &'a str {
+    match d_type {
+        crate::DataType::String => "TEXT",
+        crate::DataType::Integer => "INTEGER",
+        crate::DataType::Number => "REAL",
+        crate::DataType::Boolean => "INTEGER",
+        crate::DataType::Bytes => "BLOB",
+        crate::DataType::Nil => "NULL",
+    }
+}
+
+fn to_dml_sql(name: &str, args: &Columns, columns: &Columns) -> String {
+    let mut sql = format!("CREATE TABLE {}(", name);
+
+    for (index, col) in columns.iter().enumerate() {
+        sql.push_str(&col.0);
+        sql.push_str(" ");
+
+        sql.push_str(to_sqlite_type(col.1));
+        if index < columns.len() - 1 {
+            sql.push_str(", ");
+        }
+    }
+
+    if columns.len() > 0 {
+        sql.push(',');
+    }
+
+    for (index, col) in args.iter().enumerate() {
+        sql.push_str(&col.0);
+        sql.push_str(" HIDDEN ");
+
+        sql.push_str(to_sqlite_type(col.1));
+        if index < args.len() - 1 {
+            sql.push_str(", ");
+        }
+    }
+
+    sql.push_str(");");
+
+    sql
+}
+
 unsafe impl<'vtab> VTab<'vtab> for SQLTab {
     type Aux = Arc<Box<dyn DataSource>>;
     type Cursor = SQLTabCursor<'vtab>;
@@ -51,50 +94,10 @@ unsafe impl<'vtab> VTab<'vtab> for SQLTab {
         let columns = ds.columns();
         let args = ds.args();
         let name = ds.name();
-        let mut sql = format!("CREATE TABLE {}(", name);
 
-        for (index, col) in columns.iter().enumerate() {
-            sql.push_str(&col.0);
-            sql.push_str(" ");
+        let sql = to_dml_sql(name, &args, &columns);
 
-            match col.1 {
-                crate::DataType::String => sql.push_str("TEXT"),
-                crate::DataType::Integer => sql.push_str("INTEGER"),
-                crate::DataType::Number => sql.push_str("REAL"),
-                crate::DataType::Boolean => sql.push_str("INTEGER"),
-                crate::DataType::Bytes => sql.push_str("BLOB"),
-                crate::DataType::Nil => sql.push_str("NULL"),
-            };
-            if index < columns.len() - 1 {
-                sql.push_str(", ");
-            }
-        }
-
-        if columns.len() > 0 {
-            sql.push(',');
-        }
-
-        for (index, col) in args.iter().enumerate() {
-            sql.push_str(&col.0);
-            sql.push_str(" HIDDEN ");
-
-            match col.1 {
-                crate::DataType::String => sql.push_str("TEXT"),
-                crate::DataType::Integer => sql.push_str("INTEGER"),
-                crate::DataType::Number => sql.push_str("REAL"),
-                crate::DataType::Boolean => sql.push_str("INTEGER"),
-                crate::DataType::Bytes => sql.push_str("BLOB"),
-                crate::DataType::Nil => sql.push_str("NULL"),
-            };
-            if index < args.len() - 1 {
-                sql.push_str(", ");
-            }
-        }
-
-        sql.push_str(");");
-
-        println!("Custom SQL: {}", sql);
-
+        println!("sql - {}", sql);
         let vtab = SQLTab {
             base: ffi::sqlite3_vtab::default(),
             ds: ds.clone(),
@@ -110,17 +113,18 @@ unsafe impl<'vtab> VTab<'vtab> for SQLTab {
     fn best_index(&self, info: &mut IndexInfo) -> Result<()> {
         let mut idx_num = 0;
         let mut params = vec![];
-        let cols_index = self.cols.len();
+        let cols_len = self.cols.len()  as i32;
         for (i, constraint) in info.constraints().enumerate() {
             if !constraint.is_usable() {
                 continue;
             }
-            if constraint.operator() != IndexConstraintOp::SQLITE_INDEX_CONSTRAINT_EQ {
-                continue;
+
+            if constraint.operator() == IndexConstraintOp::SQLITE_INDEX_CONSTRAINT_EQ {
+                if constraint.column() >= cols_len {
+                    params.push(i);
+                    idx_num |= 1 << constraint.column();
+                }
             }
-            let param_index = constraint.column() as usize - cols_index;
-            params.push(param_index);
-            idx_num |= 1 << i;
         }
 
         let mut num_of_arg = 0;
@@ -130,9 +134,6 @@ unsafe impl<'vtab> VTab<'vtab> for SQLTab {
             constraint_usage.set_argv_index(num_of_arg);
             constraint_usage.set_omit(true);
         }
-
-        info.set_estimated_cost(2_147_483_647f64);
-        info.set_estimated_rows(2_147_483_647);
         info.set_idx_num(idx_num as i32);
         Ok(())
     }
@@ -210,7 +211,6 @@ unsafe impl VTabCursor for SQLTabCursor<'_> {
                 }
             }
         } else {
-            println!("none resp");
             self.eof = false;
         }
         Ok(())

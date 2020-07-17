@@ -190,7 +190,7 @@ mod test {
     }
 
     #[test]
-    fn test_ssh() {
+    fn test_df_k() {
         use std::time::Duration;
 
         // Filesystem     1K-blocks    Used Available Use% Mounted on
@@ -231,11 +231,102 @@ mod test {
             &columns![String: "filesystem", Integer: "total", Integer: "used", Integer: "avail"],
             columns
         );
+        println!("columns - {:?}",columns);
         let mut index = 0;
         for rs in resp {
-            let _ = rs.unwrap();
+            let row = rs.unwrap();
+            println!("row - {:?}",row);
             index += 1;
         }
         assert_eq!(index, 3);
+    }
+
+    #[test]
+    fn test_free_k() {
+        use std::time::Duration;
+
+        // total       used       free     shared    buffers     cached
+        // Mem:       2037800    1104092     933708     189008      18664     684116
+        // -/+ buffers/cache:     401312    1636488
+        // Swap:      1048572          0    1048572
+        let session: Box<dyn Session> = crate::new_session(
+            "ssh://oracle:admin@127.0.0.1:49160/bee?connect_timeout=5&protocol=user_pwd",
+        )
+        .unwrap();
+
+        let statement = session
+            .query(
+                r#"
+                SELECT  get(output,1,'INT',0) as used,
+                        get(output,2,'INT',0) as free,
+                        get(output,3,'INT',0) as shared,
+                        get(output,4,'INT',0) as buffers,
+                        get(output,5,'INT',0) as cached
+                FROM (SELECT split_space(line) as output FROM ssh('free -k',10) 
+                WHERE line LIKE '%Mem:%')
+            "#,
+                Duration::from_secs(4),
+            )
+            .unwrap();
+
+        let resp = statement.wait().unwrap();
+        let columns = resp.columns();
+        assert_eq!(5, columns.len());
+        assert_eq!(
+            &columns![Integer: "used", Integer: "free", Integer: "shared", Integer: "buffers", Integer: "cached"],
+            columns
+        );
+        println!("columns - {:?}",columns);
+        let mut index = 0;
+        for rs in resp {
+            let row = rs.unwrap();
+            println!("row - {:?}",row);
+            index += 1;
+        }
+        assert_eq!(index, 1);
+    }
+
+    #[test]
+    fn test_iostat_c() {
+        use std::time::Duration;
+
+        // Linux 4.19.76-linuxkit (cb9607b8c76e) 	07/17/20 	_x86_64_	(1 CPU)
+        //
+        // avg-cpu:  %user   %nice %system %iowait  %steal   %idle
+        //            1.57    0.00    1.16    0.12    0.00   97.15
+        let session: Box<dyn Session> = crate::new_session(
+            "ssh://oracle:admin@127.0.0.1:49160/bee?connect_timeout=5&protocol=user_pwd",
+        )
+        .unwrap();
+
+        let statement = session
+            .query(
+                r#"
+                SELECT  get(output,0,'REAL',0.0) as user,
+                        get(output,1,'REAL',0.0) as nice,
+                        get(output,2,'REAL',0.0) as system,
+                        get(output,3,'REAL',0.0) as iowait,
+                        get(output,5,'REAL',0.0) as idle 
+                FROM (SELECT split_space(line) as output,line_num FROM ssh('iostat -c',10) WHERE line_num = 3)
+            "#,
+                Duration::from_secs(4),
+            )
+            .unwrap();
+
+        let resp = statement.wait().unwrap();
+        let columns = resp.columns();
+        assert_eq!(5, columns.len());
+        assert_eq!(
+            &columns![Number: "user", Number: "nice", Number: "system", Number: "iowait", Number: "idle"],
+            columns
+        );
+        println!("columns - {:?}",columns);
+        let mut index = 0;
+        for rs in resp {
+            let row = rs.unwrap();
+            println!("row - {:?}",row);
+            index += 1;
+        }
+        assert_eq!(index, 1);
     }
 }

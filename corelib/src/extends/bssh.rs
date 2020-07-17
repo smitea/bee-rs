@@ -30,7 +30,7 @@ impl DataSource for SSHDataSource {
     }
 
     fn columns(&self) -> Columns {
-        columns![String: "line"]
+        columns![String: "line", Integer: "line_num"]
     }
 
     fn collect(&self, promise: &mut Promise) -> Result<(), crate::Error> {
@@ -95,6 +95,7 @@ pub fn run_cmd(
     let lines = buffer.lines();
     let mut has_start = false;
 
+    let mut index = 0;
     for line in lines {
         // 匹配起始行
         if line.trim() == mark_start {
@@ -108,7 +109,8 @@ pub fn run_cmd(
         }
 
         if has_start {
-            promise.commit(State::from(row![line]))?;
+            promise.commit(State::from(row![line,index as i64]))?;
+            index += 1;
         }
     }
 
@@ -175,7 +177,7 @@ mod test {
 
         let resp = stat.wait().unwrap();
         let columns = resp.columns();
-        assert_eq!(1, columns.len());
+        assert_eq!(2, columns.len());
         println!("columns - {:?}", columns);
 
         let mut count = 0;

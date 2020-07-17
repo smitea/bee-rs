@@ -13,7 +13,7 @@ impl DataSource for CMDSource {
     }
 
     fn columns(&self) -> Columns {
-        columns![String: "line"]
+        columns![String: "line", Integer: "line_num"]
     }
 
     fn collect(&self, promise: &mut Promise) -> Result<(), crate::Error> {
@@ -27,9 +27,11 @@ fn run_cmd(cmd: String, promise: &mut crate::Promise) -> Result<(), crate::Error
     let output = Command::new("sh").arg("-c").arg(cmd).output()?;
     if output.status.success() {
         let mut cur = Cursor::new(output.stdout).lines();
+        let mut index  = 0;
         while let Some(line) = cur.next() {
             let line = line?;
-            promise.commit(State::from(crate::row![line]))?;
+            promise.commit(State::from(crate::row![line,index]))?;
+            index += 1;
         }
         Ok(())
     } else {
@@ -68,7 +70,7 @@ mod test {
 
         let resp = stat.wait().unwrap();
         let columns = resp.columns();
-        assert_eq!(1, columns.len());
+        assert_eq!(2, columns.len());
         println!("columns - {:?}", columns);
 
         let mut count = 0;
