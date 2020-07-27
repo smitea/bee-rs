@@ -2,7 +2,7 @@ use std::{fmt::Display, str::FromStr};
 use url::ParseError;
 
 #[macro_export]
-macro_rules! CODE {
+macro_rules! code {
     ($base : expr, $index : expr) => {{
         $base | ($index << 8)
     }};
@@ -19,41 +19,43 @@ const LOCKED: i32 = 8;
 
 const OTHER: i32 = 9;
 
-const INVALID_TYPE: i32 = CODE!(INVALID, 1);
-const INVALID_UTF8: i32 = CODE!(INVALID, 2);
-const INVALID_URL: i32 = CODE!(INVALID, 3);
-const INVALID_PATH: i32 = CODE!(INVALID, 4);
+const INVALID_TYPE: i32 = code!(INVALID, 1);
+const INVALID_UTF8: i32 = code!(INVALID, 2);
+const INVALID_URL: i32 = code!(INVALID, 3);
+const INVALID_PATH: i32 = code!(INVALID, 4);
 
-const PARAM_INDEX: i32 = CODE!(PARAM, 1);
+const PARAM_INDEX: i32 = code!(PARAM, 1);
 
-const IO_NOTFOUND: i32 = CODE!(IO, 1);
-const IO_PERMISSIONDENIED: i32 = CODE!(IO, 2);
-const IO_CONNECTIONREFUSED: i32 = CODE!(IO, 3);
-const IO_CONNECTIONRESET: i32 = CODE!(IO, 4);
-const IO_CONNECTIONABORTED: i32 = CODE!(IO, 5);
-const IO_NOTCONNECTED: i32 = CODE!(IO, 6);
-const IO_ADDRINUSE: i32 = CODE!(IO, 7);
-const IO_ADDRNOTAVAILABLE: i32 = CODE!(IO, 8);
-const IO_BROKENPIPE: i32 = CODE!(IO, 9);
-const IO_ALREADYEXISTS: i32 = CODE!(IO, 10);
-const IO_INVALIDINPUT: i32 = CODE!(IO, 11);
-const IO_INVALIDDATA: i32 = CODE!(IO, 12);
-const IO_TIMEDOUT: i32 = CODE!(IO, 13);
-const IO_WRITEZERO: i32 = CODE!(IO, 14);
-const IO_OTHER: i32 = CODE!(IO, 15);
-const IO_UNEXPECTEDEOF: i32 = CODE!(IO, 16);
-const IO_WOULDBLOCK: i32 = CODE!(IO, 17);
-const IO_INTERRUPTED: i32 = CODE!(IO, 18);
-const CHANNEL_RECV: i32 = CODE!(CHANNEL, 1);
-const CHANNEL_SEND: i32 = CODE!(CHANNEL, 2);
+const IO_NOTFOUND: i32 = code!(IO, 1);
+const IO_PERMISSIONDENIED: i32 = code!(IO, 2);
+const IO_CONNECTIONREFUSED: i32 = code!(IO, 3);
+const IO_CONNECTIONRESET: i32 = code!(IO, 4);
+const IO_CONNECTIONABORTED: i32 = code!(IO, 5);
+const IO_NOTCONNECTED: i32 = code!(IO, 6);
+const IO_ADDRINUSE: i32 = code!(IO, 7);
+const IO_ADDRNOTAVAILABLE: i32 = code!(IO, 8);
+const IO_BROKENPIPE: i32 = code!(IO, 9);
+const IO_ALREADYEXISTS: i32 = code!(IO, 10);
+const IO_INVALIDINPUT: i32 = code!(IO, 11);
+const IO_INVALIDDATA: i32 = code!(IO, 12);
+const IO_TIMEDOUT: i32 = code!(IO, 13);
+const IO_WRITEZERO: i32 = code!(IO, 14);
+const IO_OTHER: i32 = code!(IO, 15);
+const IO_UNEXPECTEDEOF: i32 = code!(IO, 16);
+const IO_WOULDBLOCK: i32 = code!(IO, 17);
+const IO_INTERRUPTED: i32 = code!(IO, 18);
+const CHANNEL_RECV: i32 = code!(CHANNEL, 1);
+const CHANNEL_SEND: i32 = code!(CHANNEL, 2);
 
-const MUTEX_LOCKED: i32 = CODE!(LOCKED, 1);
+const MUTEX_LOCKED: i32 = code!(LOCKED, 1);
 
 #[derive(Debug, Clone)]
 pub struct Error {
     code: i32,
     msg: String,
 }
+
+pub type Result<T> = std::result::Result<T, Error>;
 
 macro_rules! from_code {
     ($fun: ident ,$variant: expr, $T:ty) => {
@@ -113,11 +115,8 @@ impl Error {
 macro_rules! from_error {
     ($variant: expr, $T:ty) => {
         impl From<$T> for Error {
-            fn from(err: $T) -> Error {
-                Error {
-                    code: $variant,
-                    msg: err.to_string(),
-                }
+            fn from(err: $T) -> Self {
+                Error::new($variant, err.to_string())
             }
         }
     };
@@ -130,11 +129,13 @@ impl<T> From<std::sync::mpsc::SendError<T>> for Error {
         Error::new(CHANNEL_SEND, err)
     }
 }
+
 from_error!(INVALID_UTF8, std::string::FromUtf8Error);
 from_error!(INVALID_UTF8, std::str::Utf8Error);
 from_error!(INVALID_PATH, std::convert::Infallible);
 from_error!(INVALID_URL, ParseError);
 from_error!(INVALID_TYPE, std::num::ParseIntError);
+from_error!(INVALID_TYPE, std::num::ParseFloatError);
 
 impl From<std::io::Error> for Error {
     fn from(err: std::io::Error) -> Self {
@@ -163,6 +164,7 @@ impl From<std::io::Error> for Error {
 }
 
 unsafe impl Send for Error {}
+
 unsafe impl Sync for Error {}
 
 impl Display for Error {
@@ -173,11 +175,14 @@ impl Display for Error {
 
 impl FromStr for Error {
     type Err = Error;
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
         let values: Vec<&str> = s.split(",").collect();
         if let (Some(code), Some(msg)) = (values.get(0), values.get(1)) {
             let code: i32 = code.parse()?;
-            Ok(Self { code, msg: msg.to_string() })
+            Ok(Self {
+                code,
+                msg: msg.to_string(),
+            })
         } else {
             Ok(Error::internal(OTHER, s))
         }

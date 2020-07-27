@@ -1,11 +1,16 @@
-use crate::{Columns, Error, Row};
+use crate::{Columns, Error, Row, Value};
 
-#[derive(Debug,Clone)]
+#[derive(Debug, Clone)]
 pub enum State {
     Ready(Columns),
     Process(Row),
     Err(Error),
     Ok,
+}
+
+pub trait ToData {
+    fn columns() -> Columns;
+    fn to_row(self) -> Row;
 }
 
 macro_rules! is_type {

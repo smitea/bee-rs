@@ -9,10 +9,6 @@ impl DataSource for CPUUsage {
         "cpu_usage"
     }
 
-    fn args(&self) -> Columns {
-        columns![]
-    }
-
     fn columns(&self) -> Columns {
         columns![
             Number  : "idle",

@@ -1,7 +1,7 @@
-use crate::{Error, Value};
+use crate::{Result, Value, Error};
 use std::convert::TryFrom;
 
-#[derive(Clone,Debug)]
+#[derive(Clone,Debug,Eq, PartialEq)]
 pub struct Row {
     pub(crate) values: Vec<Value>,
 }
@@ -12,14 +12,14 @@ impl Row {
         Row { values: vec![] }
     }
 
-    pub fn get<T: TryFrom<Value, Error = Error>>(&self, index: usize) -> Result<T, Error> {
+    pub fn get<T: TryFrom<Value, Error = Error>>(&self, index: usize) -> Result<T> {
         self.values
             .get(index)
             .map(|val| T::try_from(val.clone()))
             .ok_or(Error::index_range(index))?
     }
 
-    pub fn get_value(&self, index: usize) -> Result<&Value, Error> {
+    pub fn get_value(&self, index: usize) -> Result<&Value> {
         self.values
             .get(index)
             .map(|val| Ok(val))

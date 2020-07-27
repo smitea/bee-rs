@@ -66,6 +66,15 @@ macro_rules! columns {
 
         cols
     }};
+
+    [$($type_d: expr => $name: expr),*] => {{
+        let mut cols: $crate::Columns = $crate::Columns::new();
+        $(
+            cols.push($name, $type_d);
+        )*
+
+        cols
+    }};
 }
 
 #[test]

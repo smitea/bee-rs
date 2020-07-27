@@ -144,15 +144,15 @@ mod test {
             "ARRAY"
         }
 
-        fn args(&self) -> Columns {
-            columns![Integer: "count"]
-        }
-
         fn columns(&self) -> Columns {
             columns![Integer: "v1"]
         }
 
-        fn collect(&self, promise: &mut Promise) -> Result<(), crate::Error> {
+        fn args(&self) -> Columns {
+            columns![Integer: "count"]
+        }
+
+        fn collect(&self, promise: &mut Promise<>) -> Result<(), crate::Error> {
             let args = promise.get_args();
             let count: i64 = args.get(0)?;
             for i in 0..count {
@@ -375,6 +375,7 @@ mod test {
             println!("row - {:?}", row);
             index += 1;
         }
+        
         assert_eq!(index, 1);
     }
 
@@ -393,8 +394,8 @@ mod test {
                 r#"
                 SELECT file_name,total,used, total - used as avali FROM (
                     SELECT  get(output,0,'TEXT',0) as file_name,
-                        get(output,2,'INT',0) as total,
-                        get(output,3,'INT',0) as used
+                            get(output,2,'INT',0) as total,
+                            get(output,3,'INT',0) as used
                     FROM (SELECT split_space(line) as output FROM ssh('swapon -s',10) WHERE line_num > 0)
                 )
             "#,

@@ -25,12 +25,12 @@ impl DataSource for SSHDataSource {
         "ssh"
     }
 
-    fn args(&self) -> Columns {
-        columns![String: "script", Integer: "timeout"]
-    }
-
     fn columns(&self) -> Columns {
         columns![String: "line", Integer: "line_num"]
+    }
+
+    fn args(&self) -> Columns {
+        columns![String: "script", Integer: "timeout"]
     }
 
     fn collect(&self, promise: &mut Promise) -> Result<(), crate::Error> {
@@ -117,40 +117,7 @@ pub fn run_cmd(
     return Ok(());
 }
 
-pub fn new_datasource(instance: &Instance) -> Result<Box<dyn DataSource>, Error> {
-    let protocol: String = instance.get_param("protocol")?;
 
-    let host = instance.get_host().ok_or(Error::index_param("host"))?;
-    let port: u16 = instance.get_port().ok_or(Error::index_param("port"))?;
-    let username = instance.get_username();
-    if username.trim().is_empty() {
-        return Err(Error::index_param("username"));
-    }
-
-    let connect_timeout: i32 = instance.get_param("connect_timeout").unwrap_or(5);
-
-    let mut sess = Session::new().unwrap();
-    sess.set_host(host)?;
-    sess.set_port(port as usize)?;
-    sess.set_timeout(connect_timeout as usize)?;
-    sess.set_username(username)?;
-    sess.connect()?;
-    if protocol == "user_pwd" {
-        let password = instance
-            .get_password()
-            .ok_or(Error::index_param("password"))?;
-        sess.userauth_password(password)?;
-    } else if protocol == "pub_key" {
-        let public_key: String = instance.get_param("public_key")?;
-        sess.userauth_publickey_auto(Option::Some(public_key.as_str()))?;
-    } else {
-        return Err(Error::index_param("protocol"));
-    }
-
-    return Ok(Box::new(SSHDataSource {
-        session: Arc::new(Mutex::new(sess)),
-    }));
-}
 
 #[cfg(test)]
 mod test {

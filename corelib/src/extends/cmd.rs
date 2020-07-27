@@ -8,12 +8,12 @@ impl DataSource for CMDSource {
         "cmd"
     }
 
-    fn args(&self) -> Columns {
-        columns![String: "script"]
-    }
-
     fn columns(&self) -> Columns {
         columns![String: "line", Integer: "line_num"]
+    }
+
+    fn args(&self) -> Columns {
+        columns![String: "script"]
     }
 
     fn collect(&self, promise: &mut Promise) -> Result<(), crate::Error> {

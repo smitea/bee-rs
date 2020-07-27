@@ -1,4 +1,4 @@
-use crate::{Error, Value};
+use crate::{Error, Value,Result};
 use std::convert::TryFrom;
 
 #[derive(Debug,Clone)]
@@ -13,7 +13,7 @@ impl Args {
         Self { values: vec![] }
     }
 
-    pub fn get<T: TryFrom<Value, Error = Error>>(&self, index: usize) -> Result<T, Error> {
+    pub fn get<T: TryFrom<Value, Error = Error>>(&self, index: usize) -> Result<T> {
         self.values
             .get(index)
             .map(|val| T::try_from(val.clone()))

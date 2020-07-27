@@ -1,4 +1,4 @@
-use crate::{Error, Value};
+use crate::{Error, Value,Result};
 use std::{collections::HashMap, convert::TryFrom, str::FromStr};
 use url::Url;
 
@@ -14,7 +14,7 @@ pub struct Instance {
 }
 
 impl Instance {
-    pub fn from(url: &str) -> Result<Self, Error> {
+    pub fn from(url: &str) -> Result<Self> {
         let url = Url::parse(url)?;
         let connect_mode = url.scheme();
         let username = url.username().to_string();
@@ -99,7 +99,7 @@ impl Instance {
         }
     }
 
-    pub fn get_param<T: TryFrom<Value, Error = Error>>(&self, name: &str) -> Result<T, Error> {
+    pub fn get_param<T: TryFrom<Value, Error = Error>>(&self, name: &str) -> Result<T> {
         self.params
             .get(&name.to_owned())
             .map(|val| T::try_from(val.clone()))
@@ -109,7 +109,7 @@ impl Instance {
 
 impl FromStr for Instance {
     type Err = Error;
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
         Instance::from(s)
     }
 }

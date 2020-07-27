@@ -11,6 +11,35 @@ pub enum DataType {
     Nil,
 }
 
+pub trait ToType {
+    fn get_type() -> DataType;
+}
+
+macro_rules! impl_to_type {
+    ($t1: ty, $t2: ident) => {
+        impl $crate::ToType for $t1 {
+            fn get_type() -> $crate::DataType {
+                $crate::DataType::$t2
+            }
+        }
+    };
+}
+
+impl_to_type!(i64, Integer);
+impl_to_type!(i32, Integer);
+impl_to_type!(i16, Integer);
+impl_to_type!(i8, Integer);
+impl_to_type!(u32, Integer);
+impl_to_type!(u16, Integer);
+impl_to_type!(u8, Integer);
+impl_to_type!(f64, Number);
+impl_to_type!(f32, Number);
+impl_to_type!(bool, Boolean);
+impl_to_type!(String, String);
+impl_to_type!(Vec<u8>, Bytes);
+impl_to_type!([u8], Bytes);
+impl_to_type!((), Nil);
+
 impl FromStr for DataType {
     type Err = Error;
     fn from_str(s: &str) -> Result<Self, Self::Err> {

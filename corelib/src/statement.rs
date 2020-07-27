@@ -117,7 +117,7 @@ fn test() {
     let request = Request::new(Args::new(), rx);
     std::thread::spawn(move || {
         let mut promise = request
-            .head(crate::columns![String: "name", Number: "age", Integer: "row_id", Boolean: "is_new", Bytes: "image"])
+            .new_commit(crate::columns![String: "name", Number: "age", Integer: "row_id", Boolean: "is_new", Bytes: "image"])
             .unwrap();
 
         std::thread::sleep(Duration::from_millis(100));

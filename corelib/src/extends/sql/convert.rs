@@ -1,8 +1,5 @@
-use crate::{Error, Value, CODE};
-use rusqlite::{
-    types::{FromSql, FromSqlError, Value as SqliteValue, ValueRef},
-    Error as SQLiteError, ToSql,
-};
+use crate::{Error, Value, CODE, ToData, Columns};
+use rusqlite::{types::{FromSql, FromSqlError, Value as SqliteValue, ValueRef}, Error as SQLiteError, ToSql, Row};
 
 const BASE_CODE: i32 = 240;
 const SQLITESINGLETHREADEDMODE: i32 = CODE!(BASE_CODE, 0);
@@ -116,5 +113,15 @@ impl FromSql for Value {
 impl From<csv::Error> for Error {
     fn from(err: csv::Error) -> Self {
         Error::invalid_type(err.to_string())
+    }
+}
+
+impl ToData for Row{
+    fn columns() -> Columns {
+        unimplemented!()
+    }
+
+    fn to_row(&self) -> Row {
+        unimplemented!()
     }
 }

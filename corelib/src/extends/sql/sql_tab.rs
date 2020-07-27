@@ -77,10 +77,6 @@ unsafe impl<'vtab> VTab<'vtab> for SQLTab {
     type Aux = Arc<Box<dyn DataSource>>;
     type Cursor = SQLTabCursor<'vtab>;
 
-    fn open(&self) -> Result<SQLTabCursor<'_>> {
-        Ok(SQLTabCursor::new(self.ds.clone(), &self.cols))
-    }
-
     fn connect(
         _: &mut VTabConnection,
         aux: Option<&Self::Aux>,
@@ -136,6 +132,10 @@ unsafe impl<'vtab> VTab<'vtab> for SQLTab {
         }
         info.set_idx_num(idx_num as i32);
         Ok(())
+    }
+
+    fn open(&self) -> Result<SQLTabCursor<'_>> {
+        Ok(SQLTabCursor::new(self.ds.clone(), &self.cols))
     }
 }
 
