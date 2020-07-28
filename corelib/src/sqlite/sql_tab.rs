@@ -21,12 +21,11 @@ pub struct SQLTab {
 
 fn collect(
     data_source: Arc<Box<dyn DataSource>>,
-    request: &Request,
+    request: &mut Request,
     cols: Columns,
 ) -> Result<(), crate::Error> {
-    let mut promise = request.head(cols)?;
-
-    data_source.collect(&mut promise)?;
+    let _ = request.new_commit(cols)?;
+    data_source.collect(request)?;
     Ok(())
 }
 
@@ -109,7 +108,7 @@ unsafe impl<'vtab> VTab<'vtab> for SQLTab {
     fn best_index(&self, info: &mut IndexInfo) -> Result<()> {
         let mut idx_num = 0;
         let mut params = vec![];
-        let cols_len = self.cols.len()  as i32;
+        let cols_len = self.cols.len() as i32;
         for (i, constraint) in info.constraints().enumerate() {
             if !constraint.is_usable() {
                 continue;
@@ -170,8 +169,8 @@ impl SQLTabCursor<'_> {
     fn collect(&self, args: Args) -> Result<Response, Error> {
         let data_source: Arc<Box<dyn DataSource>> = self.ds.clone();
         let cols = self.ds.columns();
-        let (request, statement) = new_req_none(args);
-        collect(data_source, &request, cols)?;
+        let (mut request, statement) = new_req_none(args);
+        collect(data_source, &mut request, cols)?;
         let resp = statement.wait()?;
         Ok(resp)
     }

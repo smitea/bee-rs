@@ -9,29 +9,25 @@ url                 = {version = "*"}
 parking_lot         = {version = "0.11"}
 async-std           = {version = "*"}
 log                 = {version = "*"}
+state               = {version = "0.4"}
+csv                 = {version = "*"}
+bincode             = {version = "*"}
+rusqlite            = {git = "https://github.com/rusqlite/rusqlite.git", features = ["blob","vtab","functions","column_decltype","bundled"]}
+bee-codegen         = {path = "../codegen", version = "0.1.0"}
 
-#[features]
-#default     = [
-#    "sql",
-#    "sqlplus",
-#    "bash",
-#    "perl",
-#    "sftp",
-#    "file",
-#    "bssh",
-#    "cmd",
-#    "agent",
-#]
-#
-#cmd         =   []
-#sql         =   ["fallible-iterator", "bincode", "rusqlite","csv"]
-#sqlplus     =   []
-#bash        =   []
-#perl        =   []
-#file        =   []
-#sftp        =   ["ssh"]
-#bssh        =   ["ssh"]
-#agent       =   ["heim","humantime","encoding","num_cpus"]
+ssh                 = {optional = true, git = "https://github.com/sMitea/ssh.git"}
+heim                = {optional = true, git = "https://github.com/sMitea/heim.git", features = ["host","memory","cpu","disk","runtime-async-std"]}
+humantime           = {optional = true, version = "*"}
+num_cpus            = {optional = true, version = "*"}
+
+[features]
+default     = [
+    "agent",
+    "remote"
+]
+
+remote      =   ["ssh"]
+agent       =   ["heim","humantime","num_cpus"]
 
 [dev-dependencies]
 env_logger = "*"

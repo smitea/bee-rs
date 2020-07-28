@@ -1,62 +1,33 @@
-use bee_core::{Instance, Promise, Error};
-use crate::bash::{Bash, BashRow};
-use std::time::Duration;
-use std::{str::Utf8Error, sync::{Mutex, Arc, MutexGuard}};
+use crate::bash::BashRow;
+use crate::{code, Connection, Error, Instance, Promise, Result};
 use ssh::Session;
+use std::time::Duration;
+use std::{
+    str::Utf8Error,
+    sync::{Arc, Mutex, MutexGuard},
+};
 
 const BASE_CODE: i32 = 83 + 83 + 72;
+const MARK: &str = "bee";
 
-struct SSHError(ssh::Error);
+type SSHError = ssh::Error;
 
-impl From<ssh::Error> for SSHError {
-    fn from(err: ssh::Error) -> Self {
-        Self(err)
-    }
-}
-
-impl From<SSHError> for Error{
+impl From<SSHError> for Error {
     fn from(err: SSHError) -> Self {
-        return Error::other(code!(BASE_CODE, err.0.code), err.0.msg);
+        let code = err.code;
+        let msg = err.msg;
+        return Error::other(code!(BASE_CODE, code), msg);
     }
 }
 
-impl From<bee_core::Error> for SSHError {
-    fn from(err: Error) -> Self {
-        return Self(ssh::Error {
-            code: err.get_code(),
-            msg: err.get_msg().to_string(),
-        });
-    }
-}
-
-impl From<std::io::Error> for SSHError{
-    fn from(err: std::io::Error) -> Self {
-        let err = Error::from(err);
-        return Self::from(err);
-    }
-}
-
-impl From<Utf8Error> for SSHError{
-    fn from(err: Utf8Error) -> Self {
-        let err = Error::from(err);
-        return Self::from(err);
-    }
-}
-
-pub struct RemoteBash {
-    session: Arc<Mutex<Session>>,
-    instance: Instance,
-}
-
-impl Bash for RemoteBash {
-    fn run_cmd(&self, script: &str, timeout: Duration, promise: &mut Promise<BashRow>) -> bee_core::Result<()> {
-        let _ = new_shell(self.session.lock()?, script, timeout, promise)?;
-        Ok(())
-    }
-}
-
-fn new_shell(mut session: MutexGuard<Session>, script: &str, timeout: Duration, promise: &mut Promise<BashRow>) -> Result<(), SSHError> {
-    let mut channel = session.channel_new()?;
+fn new_shell(
+    mut session: Arc<Mutex<Session>>,
+    script: &str,
+    timeout: Duration,
+    promise: &mut Promise<BashRow>,
+) -> Result<()> {
+    let mut lock = session.lock()?;
+    let mut channel = lock.channel_new()?;
     channel.open_session()?;
 
     let mark = std::thread::current().id();
@@ -67,7 +38,10 @@ fn new_shell(mut session: MutexGuard<Session>, script: &str, timeout: Duration, 
 
     let mark_start_cmd = format!("echo '{}'", mark_start);
     let mark_end_cmd = format!("echo '{}'", mark_end);
-    let real_script = format!("{};echo '';{};echo '';{};", mark_start_cmd, script, mark_end_cmd);
+    let real_script = format!(
+        "{};echo '';{};echo '';{};",
+        mark_start_cmd, script, mark_end_cmd
+    );
 
     channel.request_exec(real_script.as_bytes())?;
 
@@ -90,7 +64,10 @@ fn new_shell(mut session: MutexGuard<Session>, script: &str, timeout: Duration, 
             }
         } else {
             channel.send_eof()?;
-            return Err(SSHError::from(Error::io_timeout(format!("cmd - [{}] is timeout", script))));
+            return Err(Error::io_timeout(format!(
+                "cmd - [{}] is timeout",
+                script
+            )));
         }
     }
 
@@ -100,7 +77,12 @@ fn new_shell(mut session: MutexGuard<Session>, script: &str, timeout: Duration, 
     return Ok(());
 }
 
-fn decode_output(mark_start: String, mark_end: String, buffer: String, promise: &mut Promise<BashRow>) -> bee_core::Result<()> {
+fn decode_output(
+    mark_start: String,
+    mark_end: String,
+    buffer: String,
+    promise: &mut Promise<BashRow>,
+) -> crate::Result<()> {
     let lines = buffer.lines();
     let mut has_start = false;
 
@@ -118,21 +100,24 @@ fn decode_output(mark_start: String, mark_end: String, buffer: String, promise: 
         }
 
         if has_start && !line.trim().is_empty() {
-            promise.commit(BashRow::new(line, index))?;
+            promise.commit(BashRow {
+                line: line.to_string(),
+                line_num: index,
+            })?;
             index += 1;
         }
     }
     return Ok(());
 }
 
-fn new_session(instance: &Instance) -> Result<Session, SSHError> {
+fn new_session(instance: &Instance) -> Result<Session> {
     let protocol: String = instance.get_param("protocol")?;
 
     let host = instance.get_host().ok_or(Error::index_param("host"))?;
     let port: u16 = instance.get_port().ok_or(Error::index_param("port"))?;
     let username = instance.get_username();
     if username.trim().is_empty() {
-        return Err(SSHError::from(Error::index_param("username")));
+        return Err(Error::index_param("username"));
     }
 
     let connect_timeout: i32 = instance.get_param("connect_timeout").unwrap_or(5);
@@ -152,16 +137,14 @@ fn new_session(instance: &Instance) -> Result<Session, SSHError> {
         let public_key: String = instance.get_param("public_key")?;
         sess.userauth_publickey_auto(Option::Some(public_key.as_str()))?;
     } else {
-        return Err(SSHError::from(Error::index_param("protocol")));
+        return Err(Error::index_param("protocol"));
     }
 
     return Ok(sess);
 }
 
-pub fn new_remote_bash(instance: Instance) -> bee_core::Result<Box<dyn Bash>> {
-    let sess = new_session(&instance)?;
-    return Ok(Box::new(RemoteBash {
-        session: Arc::new(Mutex::new(sess)),
-        instance,
-    }));
+pub fn register_state<T: Connection>(instance: &Instance, connection: T) -> Result<()> {
+    let session = new_session(instance)?;
+    connection.register_state::<Arc<Mutex<Session>>>(Arc::new(Mutex::new(session)))?;
+    Ok(())
 }

@@ -1,33 +1,39 @@
 mod convert;
-mod functions;
 mod sql_tab;
 
 use crate::Error;
-use crate::{new_req, Args, Columns, DataType, Request, Session, State, Statement, Value};
+use crate::{new_req, Args, Columns, DataType, Request, State, Statement, Value, DataSource};
 use async_std::task;
 use convert::INVALIDCOLUMNCOUNT;
-use functions::init_functions;
 use parking_lot::*;
 use rusqlite::vtab::eponymous_only_module;
 use rusqlite::{Column, Connection, Result, Row, NO_PARAMS};
 use sql_tab::SQLTab;
 use std::{sync::Arc, time::Duration};
+use state::Container;
 
 pub struct SqliteSession {
     connection: Arc<Mutex<Connection>>,
+    container: Container,
 }
 
-impl Session for SqliteSession {
-    fn register_source(&self, ds: Box<dyn crate::DataSource>) -> Result<(), Error> {
-        let name = ds.name().to_string();
-        let aux: Option<Arc<Box<dyn crate::DataSource>>> = Some(Arc::new(ds));
-        let lock = self.connection.lock();
-        lock.create_module(name.as_str(), eponymous_only_module::<SQLTab>(), aux)?;
-        println!("register ds - {}", name);
+impl SqliteSession{
+    pub fn new() -> Result<Self>{
+        Ok(Self{
+            connection: Arc::new(Mutex::new(Connection::open_in_memory()?)),
+            container: Container::new(),
+        })
+    }
+}
+
+impl crate::Connection for SqliteSession {
+    fn register_func<F: 'static, V: Into<Value>>(&self, func: F) -> crate::Result<()>
+    where
+        F: Fn(&Args) -> crate::Result<V>,
+    {
         Ok(())
     }
-
-    fn query(&self, script: &str, timeout: Duration) -> Result<Statement, Error> {
+    fn new_statement(&self, script: &str, timeout: Duration) -> crate::Result<Statement> {
         let (request, response) = new_req(Args::new(), timeout);
         let conn = self.connection.clone();
         let script = script.to_string();
@@ -41,11 +47,16 @@ impl Session for SqliteSession {
 
         Ok(response)
     }
-
-    fn update(&self, script: &str, _timeout: Duration) -> Result<(), Error> {
-        let conn = self.connection.clone();
-        let lock = conn.lock();
-        lock.execute_batch(script)?;
+    fn register_state<T: Sync + Send + Clone + 'static>(&self, state: T) -> crate::Result<()> {
+        self.container.set(state);
+        Ok(())
+    }
+    
+    fn register_source(&self, ds: Box<dyn DataSource>) -> crate::Result<()> {
+        let name = ds.name().to_string();
+        let aux: Option<Arc<Box<dyn crate::DataSource>>> = Some(Arc::new(ds));
+        let lock = self.connection.lock();
+        lock.create_module(name.as_str(), eponymous_only_module::<SQLTab>(), aux)?;
         Ok(())
     }
 }
@@ -71,7 +82,7 @@ fn commit_statement(
                 cols.push(name, DataType::from(value));
             }
 
-            let mut promise = request.head(cols)?;
+            let mut promise = request.new_commit(cols)?;
             promise.commit(State::from(new_row))?;
             promise
         }
@@ -80,7 +91,7 @@ fn commit_statement(
                 INVALIDCOLUMNCOUNT,
                 format!("can't find columns"),
             ))?;
-            request.head(get_columns(sql_columns))?
+            request.new_commit(get_columns(sql_columns))?
         }
     };
 
@@ -126,71 +137,9 @@ fn get_columns(sql_columns: Vec<Column>) -> Columns {
     columns
 }
 
-pub fn new_session() -> Result<SqliteSession, Error> {
-    let conn = Connection::open_in_memory()?;
-    init_functions(&conn)?;
-    Ok(SqliteSession {
-        connection: Arc::new(Mutex::new(conn)),
-    })
-}
-
 mod test {
-    use crate::{columns, row, Columns, DataSource, Promise, Session, State};
-
-    struct TestSource;
-
-    impl DataSource for TestSource {
-        fn name(&self) -> &str {
-            "ARRAY"
-        }
-
-        fn columns(&self) -> Columns {
-            columns![Integer: "v1"]
-        }
-
-        fn args(&self) -> Columns {
-            columns![Integer: "count"]
-        }
-
-        fn collect(&self, promise: &mut Promise<>) -> Result<(), crate::Error> {
-            let args = promise.get_args();
-            let count: i64 = args.get(0)?;
-            for i in 0..count {
-                promise.commit(State::from(row![i]))?;
-            }
-            Ok(())
-        }
-    }
-
-    #[test]
-    fn test_array() {
-        use std::time::Duration;
-
-        let session = super::new_session().unwrap();
-        let source1 = TestSource;
-        session.register_source(Box::new(source1)).unwrap();
-
-        let mut statements = vec![];
-
-        for _ in 0..10000 {
-            let statement = session
-                .query("SELECT *FROM ARRAY(10)", Duration::from_secs(10))
-                .unwrap();
-            statements.push(statement);
-        }
-
-        for statement in statements {
-            let resp = statement.wait().unwrap();
-            let columns = resp.columns();
-            assert_eq!(1, columns.len());
-            let mut index = 0;
-            for rs in resp {
-                let _ = rs.unwrap();
-                index += 1;
-            }
-            assert_eq!(index, 10);
-        }
-    }
+    use crate::connect::Connection;
+    use super::SqliteSession;
 
     #[test]
     fn test_df_k() {
@@ -208,13 +157,13 @@ mod test {
         // tmpfs              65536       8     65528   1% /proc/timer_list
         // tmpfs              65536       8     65528   1% /proc/sched_debug
         // tmpfs            1018900       0   1018900   0% /sys/firmware
-        let session: Box<dyn Session> = crate::new_session(
+        let session: SqliteSession = crate::new_connection(
             "ssh://oracle:admin@127.0.0.1:49160/bee?connect_timeout=5&protocol=user_pwd",
         )
         .unwrap();
 
         let statement = session
-            .query(
+            .new_statement(
                 r#"
                 SELECT  get(output,0,'TEXT','') as filesystem,
                         get(output,1,'INT',0) as total,
@@ -252,13 +201,13 @@ mod test {
         // Mem:       2037800    1104092     933708     189008      18664     684116
         // -/+ buffers/cache:     401312    1636488
         // Swap:      1048572          0    1048572
-        let session: Box<dyn Session> = crate::new_session(
+        let session: SqliteSession = crate::new_connection(
             "ssh://oracle:admin@127.0.0.1:49160/bee?connect_timeout=5&protocol=user_pwd",
         )
         .unwrap();
 
         let statement = session
-            .query(
+            .new_statement(
                 r#"
                 SELECT  get(output,1,'INT',0) as used,
                         get(output,2,'INT',0) as free,
@@ -301,13 +250,13 @@ mod test {
         // sda               0.00     0.63    1.00    1.74    24.87    16.51    30.23     0.00    0.48    0.39    0.53   0.33   0.09
         // scd1              0.00     0.00    0.00    0.00     0.01     0.00    36.57     0.00    0.14    0.14    0.00   0.14   0.00
         // scd2              0.00     0.00    0.11    0.00     9.03     0.00   160.65     0.00    0.70    0.70    0.00   0.66   0.01
-        let session: Box<dyn Session> = crate::new_session(
+        let session: SqliteSession = crate::new_connection(
             "ssh://oracle:admin@127.0.0.1:49160/bee?connect_timeout=5&protocol=user_pwd",
         )
         .unwrap();
 
         let statement = session
-            .query(
+            .new_statement(
                 r#"
                 SELECT  get(output,0,'TEXT',0.0) as device,
                         get(output,12,'REAL',0.0) as svctm,
@@ -343,13 +292,13 @@ mod test {
         // r  b   swpd   free   buff  cache   si   so    bi    bo   in   cs us sy id wa st
         // 1  0      0 855268  33484 741560    0    0    51    17  196  502  1  1 99  0  0
         // 0  0      0 855260  33484 741592    0    0     0    16  213  557  1  1 98  0  0
-        let session: Box<dyn Session> = crate::new_session(
+        let session: SqliteSession = crate::new_connection(
             "ssh://oracle:admin@127.0.0.1:49160/bee?connect_timeout=5&protocol=user_pwd",
         )
         .unwrap();
 
         let statement = session
-            .query(
+            .new_statement(
                 r#"
                 SELECT  get(output,12,'REAL',0.0) as user,
                         get(output,13,'REAL',0.0) as system,
@@ -375,7 +324,7 @@ mod test {
             println!("row - {:?}", row);
             index += 1;
         }
-        
+
         assert_eq!(index, 1);
     }
 
@@ -384,13 +333,13 @@ mod test {
         use std::time::Duration;
         // Filename				Type		Size	Used	Priority
         // /swap                file		1048572	0	    -2
-        let session: Box<dyn Session> = crate::new_session(
+        let session: SqliteSession = crate::new_connection(
             "ssh://oracle:admin@127.0.0.1:49160/bee?connect_timeout=5&protocol=user_pwd",
         )
         .unwrap();
 
         let statement = session
-            .query(
+            .new_statement(
                 r#"
                 SELECT file_name,total,used, total - used as avali FROM (
                     SELECT  get(output,0,'TEXT',0) as file_name,
@@ -423,13 +372,13 @@ mod test {
     #[test]
     fn test_os() {
         use std::time::Duration;
-        let session: Box<dyn Session> = crate::new_session(
+        let session: SqliteSession = crate::new_connection(
             "ssh://oracle:admin@127.0.0.1:49160/bee?connect_timeout=5&protocol=user_pwd",
         )
         .unwrap();
 
         let statement = session
-            .query(
+            .new_statement(
                 r#"
                 SELECT line as os FROM ssh('perl -e "print($^O)"',10)
             "#,

@@ -21,7 +21,7 @@ pub fn impl_to_data(input: DeriveInput) -> TokenStream{
                     });
                     
                     quote! {
-                        bee_core::columns![#(#col),*]
+                        crate::columns![#(#col),*]
                     }
                 }
                 _ => unimplemented!()
@@ -43,19 +43,21 @@ pub fn impl_to_data(input: DeriveInput) -> TokenStream{
                     });
                     
                     quote! {
-                        bee_core::row![#(#col),*]
+                        crate::row![#(#col),*]
                     }
                 }
+                // 不支持非命名属性
                 _ => unimplemented!()
             }
         },
+        // 不支持非结构体类型
         _ => unimplemented!()
     };
 
     let expanded = quote! {
-        use crate::bee_core::ToType;
+        use crate::ToType;
         
-        impl bee_core::ToData for #name{
+        impl crate::ToData for #name{
             fn columns() -> Columns{
                 #columns
             }

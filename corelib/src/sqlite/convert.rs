@@ -1,30 +1,30 @@
-use crate::{Error, Value, CODE, ToData, Columns};
-use rusqlite::{types::{FromSql, FromSqlError, Value as SqliteValue, ValueRef}, Error as SQLiteError, ToSql, Row};
+use crate::{Error, Value, code};
+use rusqlite::{types::{FromSql, FromSqlError, Value as SqliteValue, ValueRef}, Error as SQLiteError, ToSql};
 
 const BASE_CODE: i32 = 240;
-const SQLITESINGLETHREADEDMODE: i32 = CODE!(BASE_CODE, 0);
-const FROMSQLCONVERSIONFAILURE: i32 = CODE!(BASE_CODE, 1);
-const INTEGRALVALUEOUTOFRANGE: i32 = CODE!(BASE_CODE, 2);
-const UTF8ERROR: i32 = CODE!(BASE_CODE, 3);
-const NULERROR: i32 = CODE!(BASE_CODE, 4);
-const INVALIDPARAMETERNAME: i32 = CODE!(BASE_CODE, 5);
-const INVALIDPATH: i32 = CODE!(BASE_CODE, 6);
-const EXECUTERETURNEDRESULTS: i32 = CODE!(BASE_CODE, 7);
-const QUERYRETURNEDNOROWS: i32 = CODE!(BASE_CODE, 8);
-const INVALIDCOLUMNINDEX: i32 = CODE!(BASE_CODE, 9);
-const INVALIDCOLUMNNAME: i32 = CODE!(BASE_CODE, 10);
-const INVALIDCOLUMNTYPE: i32 = CODE!(BASE_CODE, 11);
-const STATEMENTCHANGEDROWS: i32 = CODE!(BASE_CODE, 12);
-const TOSQLCONVERSIONFAILURE: i32 = CODE!(BASE_CODE, 13);
-const INVALIDQUERY: i32 = CODE!(BASE_CODE, 14);
-const MULTIPLESTATEMENT: i32 = CODE!(BASE_CODE, 15);
-const USERFUNCTIONERROR: i32 = CODE!(BASE_CODE, 16);
-const INVALIDFUNCTIONPARAMETERTYPE: i32 = CODE!(BASE_CODE, 17);
-const UNWINDINGPANIC: i32 = CODE!(BASE_CODE, 18);
-const GETAUXWRONGTYPE: i32 = CODE!(BASE_CODE, 19);
-const INVALIDPARAMETERCOUNT: i32 = CODE!(BASE_CODE, 20);
-const OTHER: i32 = CODE!(BASE_CODE, 21);
-pub(crate) const INVALIDCOLUMNCOUNT: i32 = CODE!(BASE_CODE, 22);
+const SQLITESINGLETHREADEDMODE: i32 = code!(BASE_CODE, 0);
+const FROMSQLCONVERSIONFAILURE: i32 = code!(BASE_CODE, 1);
+const INTEGRALVALUEOUTOFRANGE: i32 = code!(BASE_CODE, 2);
+const UTF8ERROR: i32 = code!(BASE_CODE, 3);
+const NULERROR: i32 = code!(BASE_CODE, 4);
+const INVALIDPARAMETERNAME: i32 = code!(BASE_CODE, 5);
+const INVALIDPATH: i32 = code!(BASE_CODE, 6);
+const EXECUTERETURNEDRESULTS: i32 = code!(BASE_CODE, 7);
+const QUERYRETURNEDNOROWS: i32 = code!(BASE_CODE, 8);
+const INVALIDCOLUMNINDEX: i32 = code!(BASE_CODE, 9);
+const INVALIDCOLUMNNAME: i32 = code!(BASE_CODE, 10);
+const INVALIDCOLUMNTYPE: i32 = code!(BASE_CODE, 11);
+const STATEMENTCHANGEDROWS: i32 = code!(BASE_CODE, 12);
+const TOSQLCONVERSIONFAILURE: i32 = code!(BASE_CODE, 13);
+const INVALIDQUERY: i32 = code!(BASE_CODE, 14);
+const MULTIPLESTATEMENT: i32 = code!(BASE_CODE, 15);
+const USERFUNCTIONERROR: i32 = code!(BASE_CODE, 16);
+const INVALIDFUNCTIONPARAMETERTYPE: i32 = code!(BASE_CODE, 17);
+const UNWINDINGPANIC: i32 = code!(BASE_CODE, 18);
+const GETAUXWRONGTYPE: i32 = code!(BASE_CODE, 19);
+const INVALIDPARAMETERCOUNT: i32 = code!(BASE_CODE, 20);
+const OTHER: i32 = code!(BASE_CODE, 21);
+pub(crate) const INVALIDCOLUMNCOUNT: i32 = code!(BASE_CODE, 22);
 
 impl From<SQLiteError> for Error {
     fn from(err: SQLiteError) -> Self {
@@ -113,15 +113,5 @@ impl FromSql for Value {
 impl From<csv::Error> for Error {
     fn from(err: csv::Error) -> Self {
         Error::invalid_type(err.to_string())
-    }
-}
-
-impl ToData for Row{
-    fn columns() -> Columns {
-        unimplemented!()
-    }
-
-    fn to_row(&self) -> Row {
-        unimplemented!()
     }
 }

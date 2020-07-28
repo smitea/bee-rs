@@ -10,6 +10,7 @@ bee-codegen         = {version = "0.1.0", path = "../codegen"}
 csv                 = {version = "*"}
 encoding            = {version = "*"}
 bincode             = {version = "*"}
+async-std           = {version = "*"}
 
 ssh                 = {optional = true, git = "https://github.com/sMitea/ssh.git"}
 heim                = {optional = true, git = "https://github.com/sMitea/heim.git", features = ["host","memory","cpu","disk","runtime-async-std"]}
