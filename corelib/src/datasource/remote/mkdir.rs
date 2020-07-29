@@ -1,4 +1,4 @@
-use crate::{disk::Status, Promise, Result, ToData, ToType};
+use crate::{datasource::Status, Promise, Result, ToData, ToType};
 use ssh::Session;
 use std::{
     path::{Path, PathBuf},

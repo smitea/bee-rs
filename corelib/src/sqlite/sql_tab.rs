@@ -1,5 +1,5 @@
 use crate::Value;
-use crate::{new_req_none, Args, Columns, DataSource, DataType, Request, Response, Row};
+use crate::{new_req_none, Args, Columns, DataSource, DataType, Response, Row};
 use rusqlite::ffi;
 use rusqlite::vtab::{
     Context, CreateVTab, IndexConstraintOp, IndexInfo, VTab, VTabConnection, VTabCursor, Values,
@@ -17,16 +17,6 @@ pub struct SQLTab {
     params: Columns,
     args: Option<Args>,
     offset_first_row: usize,
-}
-
-fn collect(
-    data_source: Arc<Box<dyn DataSource>>,
-    request: &mut Request,
-    cols: Columns,
-) -> Result<(), crate::Error> {
-    let _ = request.new_commit(cols)?;
-    data_source.collect(request)?;
-    Ok(())
 }
 
 fn to_sqlite_type<'a>(d_type: DataType) -> &'a str {
@@ -92,7 +82,6 @@ unsafe impl<'vtab> VTab<'vtab> for SQLTab {
 
         let sql = to_dml_sql(name, &args, &columns);
 
-        println!("sql - {}", sql);
         let vtab = SQLTab {
             base: ffi::sqlite3_vtab::default(),
             ds: ds.clone(),
@@ -168,9 +157,8 @@ impl SQLTabCursor<'_> {
 
     fn collect(&self, args: Args) -> Result<Response, Error> {
         let data_source: Arc<Box<dyn DataSource>> = self.ds.clone();
-        let cols = self.ds.columns();
         let (mut request, statement) = new_req_none(args);
-        collect(data_source, &mut request, cols)?;
+        data_source.collect(&mut request)?;
         let resp = statement.wait()?;
         Ok(resp)
     }

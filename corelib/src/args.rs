@@ -32,21 +32,9 @@ impl Default for Args {
     }
 }
 
-#[macro_export]
-macro_rules! args {
-    ($($val: expr),*) => {{
-        let mut args: $crate::Args = $crate::Args::new();
-        $(
-            args.push($val);
-        )*
-
-        args
-    }};
-}
-
 #[test]
 fn test() {
-    let args: Args = args!(10, 20.0, "Name", false, vec![0x01, 0x02]);
+    let args: Args = crate::args!(10, 20.0, "Name", false, vec![0x01, 0x02]);
 
     let val1 = args.get::<i64>(0).unwrap();
     assert_eq!(10, val1);

@@ -55,6 +55,8 @@ impl crate::Connection for SqliteSession {
         let (request, response) = new_req(Args::new(), timeout);
         let conn = self.connection.clone();
         let script = script.to_string();
+
+        info!("new_statement for script: {} with timeout = {:?}", script, timeout);
         let _ = task::spawn(async move {
             let req = request;
             let rs = commit_statement(conn, script, &req);

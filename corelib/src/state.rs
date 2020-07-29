@@ -1,4 +1,4 @@
-use crate::{Columns, Error, Row, Value};
+use crate::{Columns, Error, Row};
 
 #[derive(Debug, Clone)]
 pub enum State {

@@ -8,7 +8,7 @@ pub struct Request {
 }
 
 pub struct Promise<'a, T> {
-    state: Option<T>,
+    _state: Option<T>,
     inner: Committer<'a>,
 }
 
@@ -52,7 +52,7 @@ impl Request {
 
     pub fn head<T: ToData>(&self) -> Result<Promise<T>> {
         let commit = self.new_commit(T::columns())?;
-        Ok(Promise { inner: commit, state: None })
+        Ok(Promise { inner: commit, _state: None })
     }
 
     pub fn error(&self, err: Error) -> Result<()> {

@@ -52,34 +52,9 @@ impl Default for Columns {
     }
 }
 
-#[macro_export]
-macro_rules! columns {
-    [] => {{
-        $crate::Columns::new()
-    }};
-
-    [$($type_d: ident : $name: expr),*] => {{
-        let mut cols: $crate::Columns = $crate::Columns::new();
-        $(
-            cols.push($name, $crate::DataType::$type_d);
-        )*
-
-        cols
-    }};
-
-    [$($type_d: expr => $name: expr),*] => {{
-        let mut cols: $crate::Columns = $crate::Columns::new();
-        $(
-            cols.push($name, $type_d);
-        )*
-
-        cols
-    }};
-}
-
 #[test]
 fn test() {
-    let columns = columns![
+    let columns = crate::columns![
         String  : "Name",
         Number  : "Age",
         Integer : "Count",

@@ -1,32 +1,27 @@
 #![feature(seek_convenience)]
 #![feature(with_options)]
 
-#[macro_use]
 mod connect;
 mod error;
 mod value;
 
-#[macro_use]
 mod args;
-#[macro_use]
 mod columns;
 mod datatype;
 mod instance;
 mod request;
-#[macro_use]
+
 mod row;
-#[macro_use]
-mod datasource;
 mod state;
 mod statement;
 mod register;
 
-#[cfg(feature = "agent")]
-mod agent;
-mod bash;
-mod disk;
 mod funcs;
 mod sqlite;
+mod datasource;
+
+#[macro_use]
+pub mod macros;
 
 pub use args::Args;
 pub use columns::Columns;
@@ -50,6 +45,9 @@ pub use statement::new_req;
 pub use statement::new_req_none;
 pub use statement::Response;
 pub use statement::Statement;
+pub use sqlite::SqliteSession;
+
+pub use datasource::register_ds;
 
 #[macro_use]
 extern crate log;
@@ -60,10 +58,6 @@ pub fn new_connection(url: &str) -> Result<sqlite::SqliteSession> {
     let instance: Instance = url.parse()?;
     let connect = sqlite::SqliteSession::new()?;
     funcs::register_ds(&instance, &connect)?;
-    disk::register_ds(&instance, &connect)?;
-    bash::register_ds(&instance, &connect)?;
-
-    #[cfg(feature = "agent")]
-    agent::register_ds(&instance, &connect)?;
+    datasource::register_ds(&instance,&connect)?;
     Ok(connect)
 }

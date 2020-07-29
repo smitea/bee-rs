@@ -1,4 +1,4 @@
-use crate::{Connection, Error, Instance, Result};
+use crate::{Instance, Connection, Result,Error};
 use heim::units::{time, Time};
 use std::process::{Command, Output};
 use std::time::Duration;
@@ -9,6 +9,10 @@ mod host_cpu;
 mod host_info;
 mod host_mem;
 mod host_swap;
+mod mkdir;
+mod read;
+mod upload;
+mod bash;
 
 impl From<heim::Error> for Error {
     fn from(err: heim::Error) -> Self {
@@ -45,7 +49,15 @@ fn run_command(cmd: &str) -> Result<String> {
     Ok(line)
 }
 
+
 pub fn register_ds<T: Connection>(_: &Instance, connection: &T) -> Result<()> {
+    use crate::register_ds;
+
+    connection.register_source(register_ds!(read))?;
+    connection.register_source(register_ds!(mkdir))?;
+    connection.register_source(register_ds!(upload))?;
+    connection.register_source(register_ds!(bash))?;
+
     connection.register_source(register_ds!(filesystem))?;
     connection.register_source(register_ds!(host_basic))?;
     connection.register_source(register_ds!(host_cpu))?;

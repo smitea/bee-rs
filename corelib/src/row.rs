@@ -38,22 +38,9 @@ impl Default for Row {
     }
 }
 
-#[macro_export]
-macro_rules! row {
-    ($($val: expr),*)=> {
-        {
-            let mut row = $crate::Row::new();
-            $(
-                row.push($val);
-            )*
-            row
-        }
-    };
-}
-
 #[test]
 fn test() {
-    let row: Row = row!(10, 20.0, "Name", false, vec![0x01, 0x02]);
+    let row: Row = crate::row!(10, 20.0, "Name", false, vec![0x01, 0x02]);
 
     let val1 = row.get::<i64>(0).unwrap();
     assert_eq!(10, val1);

@@ -2,7 +2,6 @@ use proc_macro::TokenStream;
 use syn::{
     parse_macro_input, DeriveInput, ItemFn,
 };
-use quote::{quote, quote_spanned};
 
 mod to_data;
 mod to_ds;

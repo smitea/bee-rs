@@ -1,22 +1,16 @@
-use crate::{Promise, Result,ToData,ToType, disk::FileLine};
-use std::{io::BufRead, io::BufReader, io::Seek, io::SeekFrom, path::PathBuf, sync::Arc, sync::Mutex};
-use ssh::Session;
+use crate::{Promise, Result,ToData,ToType, datasource::FileLine};
+use std::{fs::File, io::BufRead, io::BufReader, io::Seek, io::SeekFrom, path::PathBuf};
 
 #[datasource]
-pub fn read_remote_file(
-    session: Arc<Mutex<Session>>,
+pub fn read_agent_file(
     path: String,
     start_index: i64,
     end_index: i64,
     promise: &mut Promise<FileLine>,
 ) -> Result<()> {
-    let mut lock = session.lock()?;
-    let mut sftp = lock.sftp_new()?;
-
     let path: PathBuf = path.parse()?;
-    let mut file = sftp.open(path, libc::O_RDONLY as usize, 0700)?;
-
-    let file_size = file.stream_len()?;
+    let mut file = File::open(path)?;
+    let file_size = file.metadata()?.len();
     // 开始位置为负数则从文件末尾开始计算
     let start_seek = if start_index < 0 {
         let start_index = start_index.checked_abs().unwrap_or(0) as u64;

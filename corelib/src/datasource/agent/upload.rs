@@ -1,4 +1,4 @@
-use crate::{disk::Status, Error, Promise, Result, ToData, ToType};
+use crate::{datasource::Status, Error, Promise, Result, ToData, ToType};
 use std::{fs::File, io::ErrorKind, io::Write, path::PathBuf};
 
 #[datasource]
