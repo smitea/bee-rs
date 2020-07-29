@@ -3,7 +3,7 @@ use crate::{Columns, Connection, DataSource, Instance, Result, Row};
 #[cfg(feature = "agent")]
 mod local;
 #[cfg(feature = "remote")]
-mod remote;
+pub mod remote;
 
 #[derive(Data)]
 pub struct BashRow {

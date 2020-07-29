@@ -1,3 +1,6 @@
+#![feature(seek_convenience)]
+#![feature(with_options)]
+
 #[macro_use]
 mod connect;
 mod error;

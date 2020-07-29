@@ -19,14 +19,15 @@ ssh                 = {optional = true, git = "https://github.com/sMitea/ssh.git
 heim                = {optional = true, git = "https://github.com/sMitea/heim.git", features = ["host","memory","cpu","disk","runtime-async-std"]}
 humantime           = {optional = true, version = "*"}
 num_cpus            = {optional = true, version = "*"}
+libc                = {optional = true, version = "0.2"}
 
 [features]
 default     = [
-    
+    "agent",
     "remote"
 ]
 
-remote      =   ["ssh"]
+remote      =   ["ssh","libc"]
 agent       =   ["heim","humantime","num_cpus"]
 
 [dev-dependencies]

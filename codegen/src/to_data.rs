@@ -54,11 +54,10 @@ pub fn impl_to_data(input: DeriveInput) -> TokenStream{
         _ => unimplemented!()
     };
 
-    let expanded = quote! {
-        use crate::ToType;
-        
+    let expanded = quote! {        
         impl crate::ToData for #name{
             fn columns() -> Columns{
+                use crate::ToType;
                 #columns
             }
             fn to_row(self) -> Row{
