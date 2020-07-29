@@ -1,14 +1,12 @@
 use crate::bash::BashRow;
-use crate::{code, Connection, Error, Instance, Promise, Result};
+use crate::{code, Error, Instance, Promise, Result,ToType,ToData};
 use ssh::Session;
 use std::time::Duration;
 use std::{
-    str::Utf8Error,
-    sync::{Arc, Mutex, MutexGuard},
+    sync::{Arc, Mutex},
 };
 
 const BASE_CODE: i32 = 83 + 83 + 72;
-const MARK: &str = "bee";
 
 type SSHError = ssh::Error;
 
@@ -20,10 +18,11 @@ impl From<SSHError> for Error {
     }
 }
 
+#[datasource]
 fn new_shell(
-    mut session: Arc<Mutex<Session>>,
-    script: &str,
-    timeout: Duration,
+    session: Arc<Mutex<Session>>,
+    script: String,
+    timeout: u32,
     promise: &mut Promise<BashRow>,
 ) -> Result<()> {
     let mut lock = session.lock()?;
@@ -51,7 +50,7 @@ fn new_shell(
 
     loop {
         let mut buf = [0u8; 1024];
-        let size = stdout.read_timeout(&mut buf, timeout)?;
+        let size = stdout.read_timeout(&mut buf, Duration::from_millis(timeout as u64))?;
 
         if size > 0 {
             let slice = &buf[0..size];
@@ -64,10 +63,7 @@ fn new_shell(
             }
         } else {
             channel.send_eof()?;
-            return Err(Error::io_timeout(format!(
-                "cmd - [{}] is timeout",
-                script
-            )));
+            return Err(Error::io_timeout(format!("cmd - [{}] is timeout", script)));
         }
     }
 
@@ -110,7 +106,7 @@ fn decode_output(
     return Ok(());
 }
 
-fn new_session(instance: &Instance) -> Result<Session> {
+pub fn new_session(instance: &Instance) -> Result<Arc<Mutex<Session>>> {
     let protocol: String = instance.get_param("protocol")?;
 
     let host = instance.get_host().ok_or(Error::index_param("host"))?;
@@ -140,11 +136,5 @@ fn new_session(instance: &Instance) -> Result<Session> {
         return Err(Error::index_param("protocol"));
     }
 
-    return Ok(sess);
-}
-
-pub fn register_state<T: Connection>(instance: &Instance, connection: T) -> Result<()> {
-    let session = new_session(instance)?;
-    connection.register_state::<Arc<Mutex<Session>>>(Arc::new(Mutex::new(session)))?;
-    Ok(())
+    return Ok(Arc::new(Mutex::new(sess)));
 }

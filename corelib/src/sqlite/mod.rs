@@ -2,35 +2,53 @@ mod convert;
 mod sql_tab;
 
 use crate::Error;
-use crate::{new_req, Args, Columns, DataType, Request, State, Statement, Value, DataSource};
+use crate::{new_req, Args, Columns, DataSource, DataType, Request, State, Statement, Value};
 use async_std::task;
 use convert::INVALIDCOLUMNCOUNT;
 use parking_lot::*;
 use rusqlite::vtab::eponymous_only_module;
 use rusqlite::{Column, Connection, Result, Row, NO_PARAMS};
 use sql_tab::SQLTab;
+use std::panic::UnwindSafe;
 use std::{sync::Arc, time::Duration};
-use state::Container;
 
 pub struct SqliteSession {
     connection: Arc<Mutex<Connection>>,
-    container: Container,
 }
 
-impl SqliteSession{
-    pub fn new() -> Result<Self>{
-        Ok(Self{
+impl SqliteSession {
+    pub fn new() -> Result<Self> {
+        Ok(Self {
             connection: Arc::new(Mutex::new(Connection::open_in_memory()?)),
-            container: Container::new(),
         })
     }
 }
 
 impl crate::Connection for SqliteSession {
-    fn register_func<F: 'static, V: Into<Value>>(&self, func: F) -> crate::Result<()>
+    fn register_func<F, V: Into<Value>>(
+        &self,
+        name: &str,
+        args: usize,
+        func: F,
+    ) -> crate::Result<()>
     where
-        F: Fn(&Args) -> crate::Result<V>,
+        F: Fn(&Args) -> crate::Result<V> + Send + UnwindSafe + 'static,
     {
+        let lock = self.connection.lock();
+        lock.create_scalar_function(
+            name,
+            args as i32,
+            rusqlite::functions::FunctionFlags::default(),
+            move |context| {
+                let mut args_content = Args::new();
+                for i in 0..args {
+                    args_content.push(context.get::<Value>(i)?);
+                }
+                let value: Value = func(&args_content)?.into();
+
+                Ok(value)
+            },
+        )?;
         Ok(())
     }
     fn new_statement(&self, script: &str, timeout: Duration) -> crate::Result<Statement> {
@@ -47,11 +65,7 @@ impl crate::Connection for SqliteSession {
 
         Ok(response)
     }
-    fn register_state<T: Sync + Send + Clone + 'static>(&self, state: T) -> crate::Result<()> {
-        self.container.set(state);
-        Ok(())
-    }
-    
+
     fn register_source(&self, ds: Box<dyn DataSource>) -> crate::Result<()> {
         let name = ds.name().to_string();
         let aux: Option<Arc<Box<dyn crate::DataSource>>> = Some(Arc::new(ds));
@@ -138,8 +152,8 @@ fn get_columns(sql_columns: Vec<Column>) -> Columns {
 }
 
 mod test {
-    use crate::connect::Connection;
     use super::SqliteSession;
+    use crate::connect::Connection;
 
     #[test]
     fn test_df_k() {

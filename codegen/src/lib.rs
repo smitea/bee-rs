@@ -2,15 +2,11 @@ use proc_macro::TokenStream;
 use syn::{
     parse_macro_input, DeriveInput, ItemFn,
 };
+use quote::{quote, quote_spanned};
 
 mod to_data;
 mod to_ds;
 mod to_function;
-
-#[proc_macro]
-pub fn register_func(input: TokenStream) -> TokenStream{
-    input
-}
 
 #[proc_macro_attribute]
 pub fn function(args: TokenStream, input: TokenStream) -> TokenStream {

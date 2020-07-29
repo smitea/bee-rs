@@ -1,16 +1,14 @@
-use crate::{Connection, Error,Result, Instance};
+use crate::{Connection, Error, Instance, Result};
 use heim::units::{time, Time};
+use std::process::{Command, Output};
 use std::time::Duration;
-use std::{
-    process::{Command, Output},
-};
 
 mod filesystem;
 mod host_basic;
 mod host_cpu;
+mod host_info;
 mod host_mem;
 mod host_swap;
-mod host_info;
 
 impl From<heim::Error> for Error {
     fn from(err: heim::Error) -> Self {
@@ -47,6 +45,12 @@ fn run_command(cmd: &str) -> Result<String> {
     Ok(line)
 }
 
-pub fn register_ds<T: Connection>(instance: &Instance,connection: &T) -> Result<()>{
+pub fn register_ds<T: Connection>(_: &Instance, connection: &T) -> Result<()> {
+    connection.register_source(register_ds!(filesystem))?;
+    connection.register_source(register_ds!(host_basic))?;
+    connection.register_source(register_ds!(host_cpu))?;
+    connection.register_source(register_ds!(host_info))?;
+    connection.register_source(register_ds!(host_mem))?;
+    connection.register_source(register_ds!(host_swap))?;
     Ok(())
 }

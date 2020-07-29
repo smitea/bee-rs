@@ -22,7 +22,7 @@ num_cpus            = {optional = true, version = "*"}
 
 [features]
 default     = [
-    "agent",
+    
     "remote"
 ]
 
