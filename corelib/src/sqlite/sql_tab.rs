@@ -43,7 +43,7 @@ fn to_dml_sql(name: &str, args: &Columns, columns: &Columns) -> String {
         }
     }
 
-    if columns.len() > 0 {
+    if columns.len() > 0 && args.len() > 0 {
         sql.push(',');
     }
 
@@ -82,6 +82,8 @@ unsafe impl<'vtab> VTab<'vtab> for SQLTab {
 
         let sql = to_dml_sql(name, &args, &columns);
 
+        debug!("DML - {:?}", sql);
+
         let vtab = SQLTab {
             base: ffi::sqlite3_vtab::default(),
             ds: ds.clone(),
@@ -97,27 +99,25 @@ unsafe impl<'vtab> VTab<'vtab> for SQLTab {
     fn best_index(&self, info: &mut IndexInfo) -> Result<()> {
         let mut idx_num = 0;
         let mut params = vec![];
-        let cols_len = self.cols.len() as i32;
         for (i, constraint) in info.constraints().enumerate() {
             if !constraint.is_usable() {
                 continue;
             }
 
             if constraint.operator() == IndexConstraintOp::SQLITE_INDEX_CONSTRAINT_EQ {
-                if constraint.column() >= cols_len {
-                    params.push(i);
-                    idx_num |= 1 << constraint.column();
-                }
+                params.push(i);
+                idx_num |= 1 << constraint.column();
             }
         }
 
         let mut num_of_arg = 0;
         for index in params {
-            num_of_arg += 1;
             let mut constraint_usage = info.constraint_usage(index);
             constraint_usage.set_argv_index(num_of_arg);
             constraint_usage.set_omit(true);
+            num_of_arg += 1;
         }
+        debug!("idx_num: {:?}", idx_num);
         info.set_idx_num(idx_num as i32);
         Ok(())
     }
@@ -174,7 +174,7 @@ unsafe impl VTabCursor for SQLTabCursor<'_> {
             let val = value?;
             args.push(val);
         }
-
+        debug!("args - {:?}", args);
         self.reader = Some(self.collect(args)?);
         self.rowid = 0;
         self.next()?;

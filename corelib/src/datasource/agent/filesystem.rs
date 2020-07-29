@@ -1,4 +1,4 @@
-use crate::{Columns, Error, Promise, Row, ToData};
+use crate::{Columns, Error, Promise, Row, ToData, ToType};
 
 use async_std::prelude::*;
 use async_std::task::block_on;
@@ -30,6 +30,7 @@ pub fn filesystem(promise: &mut Promise<Filesystem>) -> Result<(), Error> {
                         .unwrap_or_else(|| OsStr::new("N/A"))
                         .to_string_lossy()
                 );
+
                 let mount_on = format!("{}", part.mount_point().to_string_lossy());
                 if let Err(_) = promise.commit(Filesystem {
                     name: filesystem,

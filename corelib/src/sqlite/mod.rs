@@ -34,6 +34,7 @@ impl crate::Connection for SqliteSession {
     where
         F: Fn(&Args) -> crate::Result<V> + Send + UnwindSafe + 'static,
     {
+        info!("register func - {}",name);
         let lock = self.connection.lock();
         lock.create_scalar_function(
             name,
@@ -70,6 +71,7 @@ impl crate::Connection for SqliteSession {
 
     fn register_source(&self, ds: Box<dyn DataSource>) -> crate::Result<()> {
         let name = ds.name().to_string();
+        info!("register datasource - {}",name);
         let aux: Option<Arc<Box<dyn crate::DataSource>>> = Some(Arc::new(ds));
         let lock = self.connection.lock();
         lock.create_module(name.as_str(), eponymous_only_module::<SQLTab>(), aux)?;
