@@ -1,3 +1,4 @@
+/// 注册一个数据源
 #[macro_export]
 macro_rules! register_ds {
     ($namespace: ident) => {
@@ -7,6 +8,7 @@ macro_rules! register_ds {
     };
 }
 
+/// 注册一个实例到容器中
 #[macro_export]
 macro_rules! register_state {
     ($ds: expr, $state: expr) => {
@@ -16,6 +18,7 @@ macro_rules! register_state {
     };
 }
 
+/// 创建一行结果集
 #[macro_export]
 macro_rules! row {
     ($($val: expr),*)=> {
@@ -29,7 +32,7 @@ macro_rules! row {
     };
 }
 
-
+/// 创建一个列定义
 #[macro_export]
 macro_rules! columns {
     [] => {{
@@ -55,6 +58,7 @@ macro_rules! columns {
     }};
 }
 
+/// 创建参数列表
 #[macro_export]
 macro_rules! args {
     ($($val: expr),*) => {{
@@ -65,4 +69,14 @@ macro_rules! args {
 
         args
     }};
+}
+
+/// 注册扩展函数
+#[macro_export]
+macro_rules! register_func {
+    ($connect: expr, $namespace: ident) => {
+        let name = $namespace::FunctionImpl::name();
+        let args_size = $namespace::FunctionImpl::args();
+        $connect.register_func(name, args_size, $namespace::FunctionImpl::invoke)?;
+    };
 }

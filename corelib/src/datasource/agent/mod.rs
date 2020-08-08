@@ -1,18 +1,26 @@
-use crate::{Instance, Connection, Result,Error};
+use crate::{Columns, Error, Instance, Register, Request, Result, configure::Configure};
 use heim::units::{time, Time};
 use std::process::{Command, Output};
 use std::time::Duration;
 
+mod cpu_usage;
 mod filesystem;
 mod host_basic;
-mod host_cpu;
-mod host_info;
 mod host_mem;
 mod host_swap;
 mod mkdir;
-mod read;
-mod upload;
-mod bash;
+mod os_info;
+mod read_file;
+mod shell;
+mod write_file;
+
+pub trait DataSource: Send + Sync {
+    fn name(&self) -> &str;
+    fn args(&self) -> Columns;
+    fn columns(&self) -> Columns;
+    fn get_register(&self) -> &Register;
+    fn collect(&self, request: &mut Request) -> Result<()>;
+}
 
 impl From<heim::Error> for Error {
     fn from(err: heim::Error) -> Self {
@@ -49,19 +57,18 @@ fn run_command(cmd: &str) -> Result<String> {
     Ok(line)
 }
 
-
-pub fn register_ds<T: Connection>(_: &Instance, connection: &T) -> Result<()> {
+/// 注册数据源
+pub fn register_ds<T: Configure>(_: &Instance, connection: &T) -> Result<()> {
     use crate::register_ds;
 
-    connection.register_source(register_ds!(read))?;
+    connection.register_source(register_ds!(read_file))?;
     connection.register_source(register_ds!(mkdir))?;
-    connection.register_source(register_ds!(upload))?;
-    connection.register_source(register_ds!(bash))?;
-
+    connection.register_source(register_ds!(write_file))?;
+    connection.register_source(register_ds!(shell))?;
     connection.register_source(register_ds!(filesystem))?;
     connection.register_source(register_ds!(host_basic))?;
-    connection.register_source(register_ds!(host_cpu))?;
-    connection.register_source(register_ds!(host_info))?;
+    connection.register_source(register_ds!(cpu_usage))?;
+    connection.register_source(register_ds!(os_info))?;
     connection.register_source(register_ds!(host_mem))?;
     connection.register_source(register_ds!(host_swap))?;
     Ok(())

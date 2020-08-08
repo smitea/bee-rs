@@ -1,5 +1,6 @@
 use state::Container;
 
+/// 注册器，用于把指定实例注册到容器中
 pub struct Register {
     container: Container,
 }
@@ -15,7 +16,7 @@ impl Register {
     where
         T: Sync + Send + Clone + 'static,
     {
-        self.container.set(value);
+        let _ = self.container.set::<_>(value);
     }
 
     pub fn get_state<T>(&self) -> T

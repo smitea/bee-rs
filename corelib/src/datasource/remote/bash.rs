@@ -13,6 +13,7 @@ fn remote_shell(
     timeout: u32,
     promise: &mut Promise<BashRow>,
 ) -> Result<()> {
+    info!("ssh [{}] with timeout = {}s",script, timeout);
     let mut lock = session.lock()?;
     let mut channel = lock.channel_new()?;
     channel.open_session()?;
@@ -38,7 +39,7 @@ fn remote_shell(
 
     loop {
         let mut buf = [0u8; 1024];
-        let size = stdout.read_timeout(&mut buf, Duration::from_millis(timeout as u64))?;
+        let size = stdout.read_timeout(&mut buf, Duration::from_secs(timeout as u64))?;
 
         if size > 0 {
             let slice = &buf[0..size];
@@ -51,7 +52,7 @@ fn remote_shell(
             }
         } else {
             channel.send_eof()?;
-            return Err(Error::io_timeout(format!("cmd - [{}] is timeout", script)));
+            return Err(Error::io_timeout(format!("cmd - [{}] is timeout in {} s", script,timeout)));
         }
     }
 

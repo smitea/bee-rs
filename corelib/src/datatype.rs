@@ -1,6 +1,7 @@
-use crate::{Error, Value};
+use crate::{Error, Value, value::Bytes};
 use std::{fmt::Display, str::FromStr};
 
+/// 数据类型
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum DataType {
     String,
@@ -11,6 +12,7 @@ pub enum DataType {
     Nil,
 }
 
+/// 将其他类型转行为当前的数据类型实例
 pub trait ToType {
     fn get_type() -> DataType;
 }
@@ -36,7 +38,7 @@ impl_to_type!(f64, Number);
 impl_to_type!(f32, Number);
 impl_to_type!(bool, Boolean);
 impl_to_type!(String, String);
-impl_to_type!(Vec<u8>, Bytes);
+impl_to_type!(Bytes, Bytes);
 impl_to_type!([u8], Bytes);
 impl_to_type!((), Nil);
 

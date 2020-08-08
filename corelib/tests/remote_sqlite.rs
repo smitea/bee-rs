@@ -1,7 +1,8 @@
 mod common;
 
-#[cfg(feature = "agent")]
 #[cfg(test)]
+#[cfg(feature = "remote")]
+#[cfg(feature = "sqlite")]
 mod test{    
     use bee_core::*;
     use crate::common::*;
@@ -103,15 +104,6 @@ mod test{
     
     #[test]
     fn test_os() {
-        init_log();
-        // Linux
-        assert_remote_sql(r#"
-            SELECT line as os FROM remote_shell('perl -e "print($^O)"',10)
-        "#, columns![String: "os"], 1,  Duration::from_secs(4));
-    }
-    
-    #[test]
-    fn test_scp() {
         init_log();
         // Linux
         assert_remote_sql(r#"

@@ -17,6 +17,7 @@ pub fn get(output: Vec<u8>, index: i32, data_type: String, default: String) -> R
 }
 
 fn parse_value(data_type: &str, value: &String) -> Result<Value> {
+    debug!("parser_value : {} - {}",data_type,value);
     let value = match data_type {
         "INT" => {
             let value = value.parse::<i64>()?;

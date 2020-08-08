@@ -4,7 +4,7 @@ use std::io::{BufRead, Cursor};
 use std::process::Command;
 
 #[datasource]
-fn agent_shell(script: String, promise: &mut Promise<BashRow>) -> Result<()> {
+fn shell(script: String,_timeout: u32, promise: &mut Promise<BashRow>) -> Result<()> {
     let output = Command::new("sh").arg("-c").arg(script).output()?;
     if output.status.success() {
         let mut cur = Cursor::new(output.stdout).lines();

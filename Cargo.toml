@@ -4,6 +4,6 @@ members = [
     "codegen",
     "codec",
 
-    "client",
+    "cli",
     "server",
 ]

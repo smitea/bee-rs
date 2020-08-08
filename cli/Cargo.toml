@@ -1,0 +1,11 @@
+[package]
+name = "bee"
+version = "0.1.0"
+authors = ["xiao.huang@enmotech.com <xiao.huang@enmotech.com>"]
+edition = "2018"
+
+
+[dependencies]
+bee-core            = {version = "0.1.0", path = "../corelib"}
+colored             = "1.9"
+prettytable-rs      = "^0.8"

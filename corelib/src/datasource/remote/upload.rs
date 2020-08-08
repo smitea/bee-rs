@@ -18,7 +18,7 @@ pub fn upload_remote_file(
     let mut channel = lock.scp_new(ssh::Mode::WRITE, "/")?;
     channel.init()?;
     channel.push_file(path, content.len(), 0o644)?;
-    channel.write(content.as_bytes())?;
+    let _ = channel.write(content.as_bytes())?;
     drop(channel);
     promise.commit(Status { success: true })?;
     Ok(())

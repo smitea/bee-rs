@@ -1,6 +1,8 @@
-use crate::{Promise, Result,ToData,ToType, datasource::FileLine};
-use std::{io::BufRead, io::BufReader, io::Seek, io::SeekFrom, path::PathBuf, sync::Arc, sync::Mutex};
+use crate::{datasource::BashRow, Promise, Result, ToData, ToType};
 use ssh::Session;
+use std::{
+    io::BufRead, io::BufReader, io::Seek, io::SeekFrom, path::PathBuf, sync::Arc, sync::Mutex,
+};
 
 #[datasource]
 pub fn read_remote_file(
@@ -8,7 +10,7 @@ pub fn read_remote_file(
     path: String,
     start_index: i64,
     end_index: i64,
-    promise: &mut Promise<FileLine>,
+    promise: &mut Promise<BashRow>,
 ) -> Result<()> {
     let mut lock = session.lock()?;
     let mut sftp = lock.sftp_new()?;
@@ -29,15 +31,15 @@ pub fn read_remote_file(
     let end_seek = SeekFrom::End(end_index);
 
     // 设置索引位置
-    file.seek(start_seek)?;
-    file.seek(end_seek)?;
+    let _ = file.seek(start_seek)?;
+    let _ = file.seek(end_seek)?;
 
     let reader = BufReader::new(file);
     let lines = reader.lines();
 
     let mut line_num = 0;
     for line in lines {
-        promise.commit(FileLine {
+        promise.commit(BashRow {
             line: line?,
             line_num,
         })?;

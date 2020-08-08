@@ -1,21 +1,25 @@
 use crate::DataType;
 use std::ops::Deref;
 
+/// 数据列结构定义
 #[derive(Debug, Clone,Eq, PartialEq)]
 pub struct Columns {
     pub(crate) values: Vec<(String, DataType)>,
 }
 
 impl Columns {
+    /// 创建一个空的结构
     #[inline(always)]
     pub fn new() -> Self {
         Self { values: vec![] }
     }
 
+    /// 获取列名通过列索引
     pub fn get_name(&self, index: usize) -> Option<&String> {
         self.values.get(index).map(|val| &val.0)
     }
 
+    /// 获取列索引通过列名
     pub fn get_index<T: Into<String>>(&self, name: T) -> Option<usize> {
         let name = name.into();
         for (index, val) in self.values.iter().enumerate() {
@@ -26,6 +30,7 @@ impl Columns {
         return None;
     }
 
+    /// 添加列名的结构定义
     #[inline(always)]
     pub fn push<K: Into<String>>(&mut self, key: K, value: DataType) {
         self.values.push((key.into(), value));

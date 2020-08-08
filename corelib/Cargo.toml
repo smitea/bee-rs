@@ -12,7 +12,6 @@ log                 = {version = "*"}
 state               = {version = "0.4"}
 csv                 = {version = "*"}
 bincode             = {version = "*"}
-rusqlite            = {git = "https://github.com/rusqlite/rusqlite.git", features = ["blob","vtab","functions","column_decltype","bundled"]}
 bee-codegen         = {path = "../codegen", version = "0.1.0"}
 
 ssh                 = {optional = true, git = "https://github.com/sMitea/ssh.git"}
@@ -21,14 +20,21 @@ humantime           = {optional = true, version = "*"}
 num_cpus            = {optional = true, version = "*"}
 libc                = {optional = true, version = "0.2"}
 
+rlua                = {optional = true, version = "*"}
+rusqlite            = {optional = true, git = "https://github.com/rusqlite/rusqlite.git", features = ["blob","vtab","functions","column_decltype","bundled"]}
+
 [features]
 default     = [
     "agent",
-    "remote"
+    "remote",
+    "sqlite",
+    "lua",
 ]
 
 remote      =   ["ssh","libc"]
 agent       =   ["heim","humantime","num_cpus"]
+sqlite      =   ["rusqlite"]
+lua         =   ["rlua"]
 
 [dev-dependencies]
 env_logger = "*"

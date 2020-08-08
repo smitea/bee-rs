@@ -1,5 +1,10 @@
-use crate::{Error, Value, code};
-use rusqlite::{types::{FromSql, FromSqlError, Value as SqliteValue, ValueRef}, Error as SQLiteError, ToSql};
+//! 这里提供了对 Sqlite 类型的转行以及错误码的定义，方便扩展 Sqlite 时使用
+//!
+use crate::{code, Error, Value};
+use rusqlite::{
+    types::{FromSql, FromSqlError, Value as SqliteValue, ValueRef},
+    Error as SQLiteError, ToSql,
+};
 
 const BASE_CODE: i32 = 240;
 const SQLITESINGLETHREADEDMODE: i32 = code!(BASE_CODE, 0);

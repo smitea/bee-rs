@@ -1,13 +1,22 @@
-use crate::Error;
+use crate::{DataType, Error};
 use std::{convert::TryFrom, fmt::Display, str::FromStr};
 
+pub type Bytes = Vec<u8>;
+
+/// 所支持的值类型
 #[derive(Debug, Clone, PartialEq)]
 pub enum Value {
+    /// 字符串类型
     String(String),
+    /// 64 位有符号整型
     Integer(i64),
+    /// 64 位有符号浮点型
     Number(f64),
+    /// Boolean 类型
     Boolean(bool),
+    /// 字节数组
     Bytes(Vec<u8>),
+    /// 空值
     Nil,
 }
 
@@ -53,7 +62,7 @@ impl_into_value!(Number: f64);
 impl_into_value!(Number: f32);
 impl_into_value!(String: &str);
 impl_into_value!(Boolean: bool);
-impl_into_value!(Bytes: Vec<u8>);
+impl_into_value!(Bytes: Bytes);
 
 impl_try_from!(Integer: i64, "i64");
 impl_try_from!(Integer: i32, "i32");
@@ -65,7 +74,7 @@ impl_try_from!(Integer: u8, "u8");
 impl_try_from!(Number: f64, "f64");
 impl_try_from!(Number: f32, "f32");
 impl_try_from!(Boolean: bool, "bool");
-impl_try_from!(Bytes: Vec<u8>, "bytes");
+impl_try_from!(Bytes: Bytes, "bytes");
 
 impl Into<Value> for () {
     fn into(self) -> Value {
@@ -128,6 +137,19 @@ impl Display for Value {
             Value::Boolean(val) => write!(f, "{}", val),
             Value::Bytes(val) => write!(f, "{:?}", val),
             Value::Nil => write!(f, "Nil"),
+        }
+    }
+}
+
+impl Value {
+    pub fn get_type(&self) -> DataType {
+        match self {
+            Value::String(_) => DataType::String,
+            Value::Integer(_) => DataType::Integer,
+            Value::Number(_) => DataType::Number,
+            Value::Boolean(_) => DataType::Boolean,
+            Value::Bytes(_) => DataType::Bytes,
+            Value::Nil => DataType::Nil,
         }
     }
 }

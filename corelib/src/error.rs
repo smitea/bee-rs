@@ -8,7 +8,7 @@ macro_rules! code {
     }};
 }
 
-pub const OK: i32 = 0;
+const OK: i32 = 0;
 
 const INTERNAL: i32 = 2;
 const INVALID: i32 = 3;
@@ -49,7 +49,8 @@ const CHANNEL_SEND: i32 = code!(CHANNEL, 2);
 
 const MUTEX_LOCKED: i32 = code!(LOCKED, 1);
 
-#[derive(Debug, Clone)]
+/// 错误信息(错误码和错误信息组成)
+#[derive(Debug, Clone,Eq, PartialEq)]
 pub struct Error {
     code: i32,
     msg: String,
@@ -75,7 +76,7 @@ impl Error {
     from_code!(io_timeout, IO_TIMEDOUT, String);
     from_code!(lock_faild, LOCKED, String);
 
-    pub(crate) fn new<T: ToString>(code: i32, msg: T) -> Self {
+    pub fn new<T: ToString>(code: i32, msg: T) -> Self {
         Self {
             code,
             msg: msg.to_string(),
@@ -109,6 +110,10 @@ impl Error {
 
     pub fn get_msg(&self) -> &str {
         &self.msg
+    }
+
+    pub fn ok_code() -> i32 {
+        OK
     }
 }
 

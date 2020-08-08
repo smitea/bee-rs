@@ -1,5 +1,6 @@
 use crate::{Columns, Error, Row};
 
+/// 数据管道中的状态位，用来确定数据管道中的类型
 #[derive(Debug, Clone)]
 pub enum State {
     Ready(Columns),
@@ -8,8 +9,11 @@ pub enum State {
     Ok,
 }
 
+/// 数据类型的定义结构
 pub trait ToData {
+    /// 获取该数据类型的定义结构
     fn columns() -> Columns;
+    /// 获取该数据类型的数据行形式
     fn to_row(self) -> Row;
 }
 
@@ -88,9 +92,6 @@ fn test() {
 
     let state = State::from(crate::row!["Name", 20.0, 10, false, vec![0x01, 0x02], ()]);
     assert!(state.is_process());
-
-    let state = State::from(Error::new(crate::error::OK, "Failed"));
-    assert!(state.is_err());
 
     let state = State::ok();
     assert!(state.is_ok());

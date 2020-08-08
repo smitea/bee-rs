@@ -1,4 +1,4 @@
-use crate::{Columns, Error, Promise, Row, ToData, ToType};
+use crate::{Columns, Error, Promise, Row, ToData};
 
 use async_std::prelude::*;
 use async_std::task::block_on;

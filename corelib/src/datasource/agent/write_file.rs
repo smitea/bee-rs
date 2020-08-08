@@ -2,7 +2,7 @@ use crate::{datasource::Status, Error, Promise, Result, ToData, ToType};
 use std::{fs::File, io::ErrorKind, io::Write, path::PathBuf};
 
 #[datasource]
-pub fn upload_agent_file(
+pub fn write_file(
     path: String,
     content: String,
     promise: &mut Promise<Status>,
@@ -29,7 +29,7 @@ pub fn upload_agent_file(
         File::create(&path)?
     };
 
-    file.write(content.as_bytes())?;
+    let _ = file.write(content.as_bytes())?;
     promise.commit(Status { success: true })?;
     Ok(())
 }

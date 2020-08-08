@@ -1,11 +1,11 @@
-use crate::{code, register_state, Connection, DataSource, Error, Instance, Result};
+use crate::{code, configure::Configure, register_state, DataSource, Error, Instance, Result};
 use ssh::Session;
 use std::sync::{Arc, Mutex};
 
+mod bash;
 mod mkdir;
 mod read;
 mod upload;
-mod bash;
 
 const BASE_CODE: i32 = 83 + 83 + 72;
 
@@ -20,11 +20,13 @@ impl From<SSHError> for Error {
 }
 
 pub fn new_session(instance: &Instance) -> Result<Arc<Mutex<Session>>> {
-    let protocol: String = instance.get_param("protocol")?;
+    let protocol = instance.get_connect_mod();
 
     let host = instance.get_host().ok_or(Error::index_param("host"))?;
     let port: u16 = instance.get_port().ok_or(Error::index_param("port"))?;
-    let username = instance.get_username();
+    let username = instance
+        .get_username()
+        .ok_or(Error::index_param("username"))?;
     if username.trim().is_empty() {
         return Err(Error::index_param("username"));
     }
@@ -35,14 +37,14 @@ pub fn new_session(instance: &Instance) -> Result<Arc<Mutex<Session>>> {
     sess.set_host(host)?;
     sess.set_port(port as usize)?;
     sess.set_timeout(connect_timeout as usize)?;
-    sess.set_username(username)?;
+    sess.set_username(&username)?;
     sess.connect()?;
-    if protocol == "user_pwd" {
+    if protocol == "password" {
         let password = instance
             .get_password()
             .ok_or(Error::index_param("password"))?;
         sess.userauth_password(password)?;
-    } else if protocol == "pub_key" {
+    } else if protocol == "pubkey" {
         let public_key: String = instance.get_param("public_key")?;
         sess.userauth_publickey_auto(Option::Some(public_key.as_str()))?;
     } else {
@@ -52,9 +54,9 @@ pub fn new_session(instance: &Instance) -> Result<Arc<Mutex<Session>>> {
     return Ok(Arc::new(Mutex::new(sess)));
 }
 
-pub fn register_ds<T: Connection>(instance: &Instance, connection: &T) -> Result<()> {
+pub fn register_ds<T: Configure>(instance: &Instance, connection: &T) -> Result<()> {
     use crate::register_ds;
-    
+
     let session = new_session(instance)?;
 
     let ds = register_ds!(read);

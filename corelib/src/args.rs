@@ -1,6 +1,7 @@
 use crate::{Error, Value,Result};
 use std::convert::TryFrom;
 
+/// 输入参数列表
 #[derive(Debug,Clone)]
 pub struct Args {
     values: Vec<Value>,
@@ -8,11 +9,13 @@ pub struct Args {
 
 impl Args {
 
+    /// 创建一个空的参数列表
     #[inline(always)]
     pub fn new() -> Self {
         Self { values: vec![] }
     }
 
+    /// 获取参数值，通过参数索引
     pub fn get<T: TryFrom<Value, Error = Error>>(&self, index: usize) -> Result<T> {
         self.values
             .get(index)
@@ -20,6 +23,7 @@ impl Args {
             .ok_or(Error::index_range(index))?
     }
 
+    /// 添加一个参数值
     #[inline(always)]
     pub fn push<T: Into<Value>>(&mut self, value: T){
         self.values.push(value.into());

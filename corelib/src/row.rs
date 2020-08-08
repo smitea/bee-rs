@@ -1,17 +1,20 @@
-use crate::{Result, Value, Error};
-use std::convert::TryFrom;
+use crate::{Error, Result, Value};
+use std::{ops::Deref, convert::TryFrom};
 
-#[derive(Clone,Debug,Eq, PartialEq)]
+/// 数据行
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Row {
     pub(crate) values: Vec<Value>,
 }
 
 impl Row {
+    /// 创建一个数据行
     #[inline(always)]
     pub fn new() -> Self {
         Row { values: vec![] }
     }
 
+    /// 获取数据行的内容(该内容的类型可以通过 `T` 来确定)，通过指定的索引，如果获取失败则返回错误
     pub fn get<T: TryFrom<Value, Error = Error>>(&self, index: usize) -> Result<T> {
         self.values
             .get(index)
@@ -19,6 +22,7 @@ impl Row {
             .ok_or(Error::index_range(index))?
     }
 
+    /// 获取数据行的内容，通过指定的索引，如果获取失败则返回错误
     pub fn get_value(&self, index: usize) -> Result<&Value> {
         self.values
             .get(index)
@@ -26,9 +30,24 @@ impl Row {
             .ok_or(Error::index_range(index))?
     }
 
+    /// 添加数据列到该数据行中，值为 `T` 类型
     #[inline(always)]
     pub fn push<T: Into<Value>>(&mut self, value: T) {
         self.values.push(value.into())
+    }
+}
+
+impl Deref for Row {
+    type Target = Vec<Value>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.values
+    }
+}
+
+impl AsRef<Vec<Value>> for Row {
+    fn as_ref(&self) -> &Vec<Value> {
+        &self.values
     }
 }
 

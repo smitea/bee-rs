@@ -6,18 +6,26 @@ use std::{
 
 const CHANNEL_SIZE: usize = 1024;
 
+/// 请求执行后的结果集
 pub struct Statement {
+    /// 数据流接收器
     tx: Receiver<State>,
+    /// 最大执行时间
     timeout: Option<Duration>,
 }
 
+/// 请求执行后的响应内容
 pub struct Response {
+    /// 最大执行时间
     timeout: Option<Duration>,
+    /// 列结构的定义
     columns: Columns,
+    /// 数据流接收器
     tx: Receiver<State>,
 }
 
 impl Response {
+    /// 获取列结构的定义
     #[inline(always)]
     pub fn columns(&self) -> &Columns {
         &self.columns
@@ -25,11 +33,13 @@ impl Response {
 }
 
 impl Statement {
+    /// 创建结果集，通过最大执行时间 `timeout` 和 数据流接收器 `tx`
     #[inline(always)]
     pub fn new(timeout: Option<Duration>, tx: Receiver<State>) -> Self {
         Self { tx, timeout }
     }
 
+    /// 等待数据响应，返回响应内容
     pub fn wait(self) -> Result<Response, Error> {
         let state = if let Some(timeout) = self.timeout {
             self.tx.recv_timeout(timeout)?
@@ -46,15 +56,15 @@ impl Statement {
         } else if let State::Err(err) = state {
             return Err(err);
         }
-        
-        return Err(Error::from(std::io::Error::from(
-            std::io::ErrorKind::InvalidData,
-        )));
+
+        return Err(Error::invalid_type(format!("invalid to wait a columns for response")));
     }
 }
 
 impl Response {
+    /// 获取下一个数据行内容
     pub fn next_row(&self) -> Option<Result<Row, Error>> {
+        // 如果设置了最大执行时间，则需要超时机制保证
         if let Some(timeout) = self.timeout {
             match self.tx.recv_timeout(timeout) {
                 Ok(state) => match state {
@@ -94,6 +104,7 @@ impl Iterator for Response {
     }
 }
 
+/// 创建一个请求和一个结果集，通过请求参数列表 `args` 和 最大执行时间 `timeout`
 pub fn new_req(args: Args, timeout: Duration) -> (Request, Statement) {
     let (tx, rx) = sync_channel(CHANNEL_SIZE);
     let request = Request::new(args, tx);
@@ -101,6 +112,7 @@ pub fn new_req(args: Args, timeout: Duration) -> (Request, Statement) {
     return (request, statement);
 }
 
+/// 创建一个请求和一个结果集，通过请求参数列表 `args`, 无最大执行时间
 pub fn new_req_none(args: Args) -> (Request, Statement) {
     let (tx, rx) = sync_channel(CHANNEL_SIZE);
     let request = Request::new(args, tx);
@@ -115,7 +127,7 @@ fn test() {
 
     let (rx, tx) = sync_channel::<State>(1024);
     let request = Request::new(Args::new(), rx);
-    std::thread::spawn(move || {
+    let _ = std::thread::spawn(move || {
         let mut promise = request
             .new_commit(crate::columns![String: "name", Number: "age", Integer: "row_id", Boolean: "is_new", Bytes: "image"])
             .unwrap();

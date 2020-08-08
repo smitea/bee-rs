@@ -1,15 +1,9 @@
-use crate::{Columns, Connection, Instance, Result, Row,Register,Request};
+use crate::{Columns, Instance, Register, Request, Result, Row, Configure};
 
 #[cfg(feature = "agent")]
 mod agent;
 #[cfg(feature = "remote")]
 mod remote;
-
-#[derive(Data)]
-pub struct FileLine {
-    pub line: String,
-    pub line_num: u32,
-}
 
 #[derive(Data)]
 pub struct Status {
@@ -27,19 +21,20 @@ pub trait DataSource: Send + Sync {
     fn args(&self) -> Columns;
     fn columns(&self) -> Columns;
     fn get_register(&self) -> &Register;
-    fn collect(&self,request: &mut Request) -> Result<()>;
+    fn collect(&self, request: &mut Request) -> Result<()>;
 }
 
-pub fn register_ds<T: Connection>(instance: &Instance, connection: &T) -> Result<()> {
-    let mode = instance.get_connect_mod();
+/// 注册数据源
+pub fn register_ds<T: Configure>(instance: &Instance, connection: &T) -> Result<()> {
+    let mode = instance.get_ds_mode();
 
     match mode {
+        #[cfg(feature = "agent")]
         "agent" => {
-            #[cfg(feature = "agent")]
             agent::register_ds(instance, connection)?;
         }
+        #[cfg(feature = "remote")]
         "remote" => {
-            #[cfg(feature = "remote")]
             remote::register_ds(instance, connection)?;
         }
         _ => unimplemented!(),
