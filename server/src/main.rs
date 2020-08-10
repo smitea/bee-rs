@@ -2,7 +2,7 @@ use bee_codec::*;
 use bee_core::new_connection;
 use bee_core::Connection;
 use colored::*;
-use log::info;
+use log::{error, info};
 use tokio::net::tcp::{OwnedReadHalf, OwnedWriteHalf};
 use tokio::net::TcpListener;
 use tokio::stream::StreamExt;
@@ -119,6 +119,10 @@ async fn process<'a>(
     addr: SocketAddr,
 ) -> Result<(), Box<dyn Error>> {
     let (connection, app) = if let Some(Ok(Packet::ConnectReq(req))) = reader_framed.next().await {
+        info!(
+            target: CONNECT,
+            "[{}] - connecting to {} ...", req.application, req.url
+        );
         (new_connection(&req.url)?, req.application)
     } else {
         return Err(Box::new(std::io::Error::new(
@@ -129,17 +133,25 @@ async fn process<'a>(
 
     info!(target: CONNECT, "[{}] - connection", app);
     while let Some(Ok(Packet::StatementReq(req))) = reader_framed.next().await {
-        match new_statement(&connection, &app, req, &mut writer_framed).await {
+        match new_statement(&connection, &app, &req, &mut writer_framed).await {
             Ok(_) => {
+                error!(target: REQUEST, "[{}-{}] is ok", app, req.id);
                 // 采集结束
                 writer_framed
-                    .send(Packet::StatementResp(StatementResp::Abort))
+                    .send(Packet::StatementResp(StatementResp::new(
+                        StatementStateResp::Abort,
+                        req.id,
+                    )))
                     .await?;
             }
             Err(err) => {
+                error!(target: REQUEST, "[{}-{}] is failed : {}", app, req.id, err);
                 // 采集错误
                 writer_framed
-                    .send(Packet::StatementResp(StatementResp::Error(err)))
+                    .send(Packet::StatementResp(StatementResp::new(
+                        StatementStateResp::Error(err),
+                        req.id,
+                    )))
                     .await?;
             }
         }
@@ -151,7 +163,7 @@ async fn process<'a>(
 async fn new_statement<'a>(
     connection: &Box<dyn Connection>,
     app_name: &str,
-    req: StatementReq,
+    req: &StatementReq,
     writer_framed: &mut FramedWrite<OwnedWriteHalf, PacketCodec>,
 ) -> Result<(), bee_core::Error> {
     info!(target: REQUEST, "[{}-{}] new statement", app_name, req.id);
@@ -165,8 +177,9 @@ async fn new_statement<'a>(
     );
     // 应答列的结构定义
     writer_framed
-        .send(Packet::StatementResp(StatementResp::Columns(
-            columns.clone(),
+        .send(Packet::StatementResp(StatementResp::new(
+            StatementStateResp::Columns(columns.clone()),
+            req.id,
         )))
         .await?;
 
@@ -177,7 +190,10 @@ async fn new_statement<'a>(
             "[{}-{}] resp row - {:?}", app_name, req.id, row
         );
         writer_framed
-            .send(Packet::StatementResp(StatementResp::Row(row)))
+            .send(Packet::StatementResp(StatementResp::new(
+                StatementStateResp::Row(row),
+                req.id,
+            )))
             .await?;
     }
     Ok(())

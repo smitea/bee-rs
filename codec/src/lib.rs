@@ -3,7 +3,9 @@ use bytes::Buf;
 use bytes::BufMut;
 use bytes::BytesMut;
 pub use connect::{ConnectionReq, ConnectionReqCodec, ConnectionResp, ConnectionRespCodec};
-pub use statement::{StatementReq, StatementReqCodec, StatementResp, StatementRespCodec};
+pub use statement::{
+    StatementReq, StatementReqCodec, StatementResp, StatementRespCodec, StatementStateResp,
+};
 use std::io::Read;
 use std::{convert::TryFrom, io::Cursor};
 use tokio_util::codec::{Decoder, Encoder};
@@ -203,6 +205,7 @@ impl Decoder for PacketCodec {
     fn decode(&mut self, src: &mut bytes::BytesMut) -> Result<Option<Self::Item>> {
         let data_size = src.len();
         if data_size >= PACKET_LEN {
+            info!("recv packet : {:x} and size = {}", src, data_size);
             let mut buf: Cursor<&BytesMut> = Cursor::new(&src);
             // Head
             let mut head: BytesMut = BytesMut::new();
@@ -214,12 +217,21 @@ impl Decoder for PacketCodec {
                     format!("invalid head : {:?}", head),
                 ));
             }
+            info!("recv head : {:x}", head);
             let cmd = buf.get_u8();
+            info!("recv type : {:x}", cmd);
             let len = buf.get_u64();
+            info!("recv len : {:x}", len);
+
+            if (data_size) < (len as usize + PACKET_LEN) {
+                return Ok(None);
+            }
 
             let mut data: BytesMut = BytesMut::new();
             data.resize(len as usize, SPACE_BYTE);
-            buf.read(&mut data)?;
+
+            buf.read_exact(&mut data)?;
+            info!("recv data : {:x}", data);
             let data = match cmd {
                 0x00 => match ConnectionReqCodec.decode(&mut data)? {
                     Some(data) => Packet::ConnectReq(data),
@@ -246,6 +258,7 @@ impl Decoder for PacketCodec {
             };
 
             let crc = buf.get_u64();
+            info!("recv crc : {:x}", crc);
             if crc != len + (PACKET_LEN as u64) {
                 return Err(Error::other(
                     INVALID_DATA_CODE,
@@ -256,6 +269,7 @@ impl Decoder for PacketCodec {
             let mut end = BytesMut::new();
             end.resize(2, 0x00);
             buf.read(&mut end)?;
+            info!("recv end : {:x}", end);
             if end.to_vec() != END {
                 return Err(Error::other(
                     INVALID_DATA_CODE,
@@ -320,7 +334,7 @@ mod test {
 
     use crate::{
         connect::{ConnectionReq, ConnectionResp},
-        statement::{StatementReq, StatementResp},
+        statement::{StatementReq, StatementResp, StatementStateResp},
         Packet, PacketCodec,
     };
     use bee_core::{columns, row, Error, Row};
@@ -386,6 +400,11 @@ mod test {
     }
 
     #[test]
+    fn test_connect_req_failed() {
+        let bytes = b"\xff\xff\x00\x00\x00\x00\x00\x00\x00\x00\x64\x01\x00\x00\x00\x5f\x73\x71\x6c\x69\x74\x65\x3a\x72\x65\x6d\x6f\x74\x65\x3a\x70\x61\x73\x73\x77\x6f\x72\x64\x3a\x2f\x2f\x6f\x72\x61\x63\x6c\x65\x3a\x61\x64\x6d\x69\x6e\x40\x31\x32\x37\x2e\x30\x2e\x30\x2e\x31\x3a\x32\x30\x30\x30\x32\x2f\x62\x65\x65\x3f\x61\x70\x70\x6c\x69\x63\x61\x74\x69\x6f\x6e\x3d\x6a\x64\x62\x63\x26\x63\x6f\x6e\x6e\x65\x63\x74\x69\x6f\x6e\x5f\x74\x69\x6d\x65\x6f\x75\x74\x3d\x35\x00\x00\x00\x00\x00\x00\x00\x79\x0d\x0a";
+    }
+
+    #[test]
     fn test_statement_req() {
         let _ = env_logger::builder()
             .is_test(true)
@@ -426,12 +445,13 @@ mod test {
             Bytes   : "Image",
             Nil     : "Phone"
         ];
-        let resp = StatementResp::Columns(columns);
-        let packet = Packet::StatementResp(resp);
+        let resp = StatementStateResp::Columns(columns);
+        let packet = Packet::StatementResp(StatementResp::new(resp, 0x01));
         let mut dist = BytesMut::new();
         codec.encode(packet.clone(), &mut dist).unwrap();
+        info!("{:x}", dist);
         assert_eq!(
-            b"\xff\xff\x03\0\0\0\0\0\0\0*\0\x06\x04Name\x01\x03Age\x03\x05Count\x02\x06IsNice\x04\x05Image\x05\x05Phone\0\0\0\0\0\0\0\0?\r\n"
+            b"\xFF\xFF\x03\x00\x00\x00\x00\x00\x00\x00\x2E\x00\x00\x00\x01\x00\x06\x04\x4E\x61\x6D\x65\x01\x03\x41\x67\x65\x03\x05\x43\x6F\x75\x6E\x74\x02\x06\x49\x73\x4E\x69\x63\x65\x04\x05\x49\x6D\x61\x67\x65\x05\x05\x50\x68\x6F\x6E\x65\x00\x00\x00\x00\x00\x00\x00\x00\x43\x0D\x0A"
                 .to_vec(),
             dist
         );
@@ -439,31 +459,34 @@ mod test {
         assert_eq!(rs, packet);
 
         let row: Row = row!(10, 20.0, "Name", false, vec![0x01, 0x02]);
-        let req = StatementResp::Row(row);
-        let packet = Packet::StatementResp(req);
+        let resp = StatementStateResp::Row(row);
+        let packet = Packet::StatementResp(StatementResp::new(resp, 0x01));
         let mut dist = BytesMut::new();
         codec.encode(packet.clone(), &mut dist).unwrap();
-        assert_eq!(b"\xff\xff\x03\0\0\0\0\0\0\0&\x01\x05\x02\0\0\0\0\0\0\0\n\x03@4\0\0\0\0\0\0\x01\0\0\0\x04Name\x04\0\x05\0\0\0\x02\x01\x02\0\0\0\0\0\0\0;\r\n".to_vec(), dist);
+        info!("{:x}", dist);
+        assert_eq!(b"\xFF\xFF\x03\x00\x00\x00\x00\x00\x00\x00\x2A\x00\x00\x00\x01\x01\x05\x02\x00\x00\x00\x00\x00\x00\x00\x0A\x03\x40\x34\x00\x00\x00\x00\x00\x00\x01\x00\x00\x00\x04\x4E\x61\x6D\x65\x04\x00\x05\x00\x00\x00\x02\x01\x02\x00\x00\x00\x00\x00\x00\x00\x3F\x0D\x0A".to_vec(), dist);
         let rs = codec.decode(&mut dist).unwrap().unwrap();
         assert_eq!(rs, packet);
 
-        let req = StatementResp::Error(Error::new(0x12, "failed to!"));
-        let packet = Packet::StatementResp(req);
+        let resp = StatementStateResp::Error(Error::new(0x12, "failed to!"));
+        let packet = Packet::StatementResp(StatementResp::new(resp, 0x01));
         let mut dist = BytesMut::new();
         codec.encode(packet.clone(), &mut dist).unwrap();
+        info!("{:x}", dist);
         assert_eq!(
-            b"\xff\xff\x03\0\0\0\0\0\0\0\x10\x03\0\0\0\x12\nfailed to!\0\0\0\0\0\0\0%\r\n".to_vec(),
+            b"\xFF\xFF\x03\x00\x00\x00\x00\x00\x00\x00\x14\x00\x00\x00\x01\x03\x00\x00\x00\x12\x0A\x66\x61\x69\x6C\x65\x64\x20\x74\x6F\x21\x00\x00\x00\x00\x00\x00\x00\x29\x0D\x0A".to_vec(),
             dist
         );
         let rs = codec.decode(&mut dist).unwrap().unwrap();
         assert_eq!(rs, packet);
 
-        let req = StatementResp::Abort;
+        let resp = StatementStateResp::Abort;
         let mut dist = BytesMut::new();
-        let packet = Packet::StatementResp(req);
+        let packet = Packet::StatementResp(StatementResp::new(resp, 0x01));
         codec.encode(packet.clone(), &mut dist).unwrap();
+        info!("{:x}", dist);
         assert_eq!(
-            b"\xff\xff\x03\0\0\0\0\0\0\0\x01\x02\0\0\0\0\0\0\0\x16\r\n".to_vec(),
+            b"\xFF\xFF\x03\x00\x00\x00\x00\x00\x00\x00\x05\x00\x00\x00\x01\x02\x00\x00\x00\x00\x00\x00\x00\x1a\x0D\x0A".to_vec(),
             dist
         );
         let rs = codec.decode(&mut dist).unwrap().unwrap();

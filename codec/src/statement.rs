@@ -17,7 +17,13 @@ pub struct StatementReq {
 }
 
 #[derive(Debug, Clone, Eq, PartialEq)]
-pub enum StatementResp {
+pub struct StatementResp {
+    pub id: u32,
+    pub state: StatementStateResp,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub enum StatementStateResp {
     Columns(Columns),
     Row(Row),
     Abort,
@@ -32,13 +38,23 @@ pub enum StatementType {
     Error,
 }
 
-impl From<State> for StatementResp {
+impl StatementResp {
+    pub fn new(state: StatementStateResp, id: u32) -> Self {
+        Self { id, state }
+    }
+
+    pub fn from_state(state: State, id: u32) -> Self {
+        Self::new(StatementStateResp::from(state), id)
+    }
+}
+
+impl From<State> for StatementStateResp {
     fn from(state: State) -> Self {
         match state {
-            State::Ready(columns) => StatementResp::Columns(columns),
-            State::Process(row) => StatementResp::Row(row),
-            State::Err(err) => StatementResp::Error(err),
-            State::Ok => StatementResp::Abort,
+            State::Ready(columns) => StatementStateResp::Columns(columns),
+            State::Process(row) => StatementStateResp::Row(row),
+            State::Err(err) => StatementStateResp::Error(err),
+            State::Ok => StatementStateResp::Abort,
         }
     }
 }
@@ -100,8 +116,9 @@ impl Decoder for StatementRespCodec {
     type Error = Error;
     fn decode(&mut self, src: &mut bytes::BytesMut) -> Result<Option<Self::Item>> {
         let mut buf: Cursor<&BytesMut> = Cursor::new(&src);
-        let statemtn_type = StatementType::try_from(buf.get_u8())?;
+        let id = buf.get_u32();
 
+        let statemtn_type = StatementType::try_from(buf.get_u8())?;
         let statement = match statemtn_type {
             StatementType::Columns => {
                 let col_size = buf.get_u8();
@@ -121,7 +138,7 @@ impl Decoder for StatementRespCodec {
                     values.push(name, d_type);
                 }
 
-                StatementResp::Columns(values)
+                StatementStateResp::Columns(values)
             }
             StatementType::Row => {
                 let len = buf.get_u8();
@@ -130,21 +147,23 @@ impl Decoder for StatementRespCodec {
                     let value: Value = read_src_value(&mut buf)?;
                     row.push(value);
                 }
-                StatementResp::Row(row)
+                StatementStateResp::Row(row)
             }
-            StatementType::Abort => StatementResp::Abort,
-            StatementType::Error => StatementResp::Error(read_error(&mut buf)?),
+            StatementType::Abort => StatementStateResp::Abort,
+            StatementType::Error => StatementStateResp::Error(read_error(&mut buf)?),
         };
 
-        Ok(Some(statement))
+        Ok(Some(StatementResp::new(statement, id)))
     }
 }
 
 impl Encoder<StatementResp> for StatementRespCodec {
     type Error = Error;
     fn encode(&mut self, item: StatementResp, dst: &mut bytes::BytesMut) -> Result<()> {
-        match item {
-            StatementResp::Columns(columns) => {
+        dst.put_u32(item.id);
+        let state = item.state;
+        match state {
+            StatementStateResp::Columns(columns) => {
                 let values = columns.to_vec();
                 dst.put_u8(StatementType::Columns as u8);
                 // 限制最大为 255 列
@@ -156,7 +175,7 @@ impl Encoder<StatementResp> for StatementRespCodec {
                     dst.put_u8(TypeSize::from(d_type) as u8);
                 }
             }
-            StatementResp::Row(row) => {
+            StatementStateResp::Row(row) => {
                 let values = row.to_vec();
                 dst.put_u8(StatementType::Row as u8);
                 // 限制最大为 255 列
@@ -165,10 +184,10 @@ impl Encoder<StatementResp> for StatementRespCodec {
                     write_value(value, dst);
                 }
             }
-            StatementResp::Abort => {
+            StatementStateResp::Abort => {
                 dst.put_u8(StatementType::Abort as u8);
             }
-            StatementResp::Error(err) => {
+            StatementStateResp::Error(err) => {
                 dst.put_u8(StatementType::Error as u8);
                 write_error(err, dst);
             }
@@ -181,8 +200,10 @@ impl Encoder<StatementResp> for StatementRespCodec {
 #[cfg(test)]
 mod test {
 
-    use super::{StatementReq, StatementReqCodec, StatementResp, StatementRespCodec};
-    use bee_core::{columns, Error, Row, row};
+    use super::{
+        StatementReq, StatementReqCodec, StatementResp, StatementRespCodec, StatementStateResp,
+    };
+    use bee_core::{columns, row, Error, Row};
     use bytes::BytesMut;
     use tokio_util::codec::{Decoder, Encoder};
 
@@ -204,7 +225,7 @@ mod test {
         codec.encode(req.clone(), &mut dist).unwrap();
         info!("{:x}", dist);
         assert_eq!(
-            b"\x02\0\0\0\0\0\0\0\x01\x01\0\0\0\x15SELECT *FROM m_test()\x02\0\0\0\0\0\0\0\x0A"
+            b"\x02\x00\x00\x00\x00\x00\x00\x00\x01\x01\x00\x00\x00\x15\x53\x45\x4C\x45\x43\x54\x20\x2A\x46\x52\x4f\x4D\x20\x6D\x5F\x74\x65\x73\x74\x28\x29\x02\x00\x00\x00\x00\x00\x00\x00\x0A"
                 .to_vec(),
             dist
         );
@@ -232,38 +253,44 @@ mod test {
             Bytes   : "Image",
             Nil     : "Phone"
         ];
-        let req = StatementResp::Columns(columns);
+        let resp = StatementResp::new(StatementStateResp::Columns(columns), 0x01);
         let mut dist = BytesMut::new();
-        codec.encode(req.clone(), &mut dist).unwrap();
+        codec.encode(resp.clone(), &mut dist).unwrap();
+        info!("{:x}", dist);
         assert_eq!(
-            b"\0\x06\x04Name\x01\x03Age\x03\x05Count\x02\x06IsNice\x04\x05Image\x05\x05Phone\0"
+            b"\x00\x00\x00\x01\x00\x06\x04\x4e\x61\x6d\x65\x01\x03\x41\x67\x65\x03\x05\x43\x6f\x75\x6e\x74\x02\x06\x49\x73\x4e\x69\x63\x65\x04\x05\x49\x6d\x61\x67\x65\x05\x05\x50\x68\x6f\x6e\x65\x00"
                 .to_vec(),
             dist
         );
         let rs = codec.decode(&mut dist).unwrap().unwrap();
-        assert_eq!(rs, req);
+        assert_eq!(rs, resp);
 
         let row: Row = row!(10, 20.0, "Name", false, vec![0x01, 0x02]);
-        let req = StatementResp::Row(row);
+        let resp = StatementResp::new(StatementStateResp::Row(row), 0x01);
         let mut dist = BytesMut::new();
-        codec.encode(req.clone(), &mut dist).unwrap();
+        codec.encode(resp.clone(), &mut dist).unwrap();
         info!("{:x}", dist);
-        assert_eq!(b"\x01\x05\x02\0\0\0\0\0\0\0\n\x03@4\0\0\0\0\0\0\x01\0\0\0\x04Name\x04\0\x05\0\0\0\x02\x01\x02".to_vec(), dist);
+        assert_eq!(b"\x00\x00\x00\x01\x01\x05\x02\x00\x00\x00\x00\x00\x00\x00\x0A\x03\x40\x34\x00\x00\x00\x00\x00\x00\x01\x00\x00\x00\x04\x4E\x61\x6d\x65\x04\x00\x05\x00\x00\x00\x02\x01\x02".to_vec(), dist);
         let rs = codec.decode(&mut dist).unwrap().unwrap();
-        assert_eq!(rs, req);
+        assert_eq!(rs, resp);
 
-        let req = StatementResp::Error(Error::new(0x12, "failed to!"));
+        let resp = StatementResp::new(
+            StatementStateResp::Error(Error::new(0x12, "failed to!")),
+            0x01,
+        );
         let mut dist = BytesMut::new();
-        codec.encode(req.clone(), &mut dist).unwrap();
-        assert_eq!(b"\x03\0\0\0\x12\x0Afailed to!".to_vec(), dist);
+        codec.encode(resp.clone(), &mut dist).unwrap();
+        info!("{:x}", dist);
+        assert_eq!(b"\x00\x00\x00\x01\x03\x00\x00\x00\x12\x0A\x66\x61\x69\x6C\x65\x64\x20\x74\x6F\x21".to_vec(), dist);
         let rs = codec.decode(&mut dist).unwrap().unwrap();
-        assert_eq!(rs, req);
+        assert_eq!(rs, resp);
 
-        let req = StatementResp::Abort;
+        let resp = StatementResp::new(StatementStateResp::Abort, 0x01);
         let mut dist = BytesMut::new();
-        codec.encode(req.clone(), &mut dist).unwrap();
-        assert_eq!(b"\x02".to_vec(), dist);
+        codec.encode(resp.clone(), &mut dist).unwrap();
+        info!("{:x}", dist);
+        assert_eq!(b"\x00\x00\x00\x01\x02".to_vec(), dist);
         let rs = codec.decode(&mut dist).unwrap().unwrap();
-        assert_eq!(rs, req);
+        assert_eq!(rs, resp);
     }
 }
