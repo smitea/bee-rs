@@ -27,8 +27,11 @@ impl Decoder for ConnectionReqCodec {
 
     fn decode(&mut self, src: &mut BytesMut) -> Result<Option<Self::Item>> {
         let mut buf: Cursor<&BytesMut> = Cursor::new(&src);
+        info!("recv req: {:x}", src);
         let url: String = read_value(&mut buf)?;
         let application: String = read_value(&mut buf)?;
+        info!("decode url: {}", url);
+        info!("decode app: {}", application);
         Ok(Some(ConnectionReq { url, application }))
     }
 }

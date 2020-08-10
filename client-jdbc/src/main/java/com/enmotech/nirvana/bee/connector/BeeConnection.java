@@ -5,14 +5,7 @@ import com.enmotech.nirvana.bee.connector.codec.ConnectReq;
 import com.enmotech.nirvana.bee.connector.codec.ConnectResp;
 import com.enmotech.nirvana.bee.connector.codec.NotConnectedException;
 import com.enmotech.nirvana.bee.connector.codec.NotSupportException;
-import com.enmotech.nirvana.bee.connector.codec.PingReq;
-import com.enmotech.nirvana.bee.connector.codec.PingResp;
-import com.enmotech.nirvana.bee.connector.codec.StatementReq;
-import com.sun.security.ntlm.Client;
-
 import java.io.Closeable;
-import java.io.IOException;
-import java.net.ConnectException;
 import java.sql.Array;
 import java.sql.Blob;
 import java.sql.CallableStatement;
@@ -33,8 +26,6 @@ import java.util.Properties;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicLong;
-import java.util.function.Consumer;
 
 class BeeConnection implements Connection, Closeable {
     static int MAX_STATEMENT_NUM = 65535;
@@ -51,9 +42,15 @@ class BeeConnection implements Connection, Closeable {
 
     private Transport createTransport(ClientInfo clientInfo) throws BeeException {
         try {
-            Transport transport = new Transport(clientInfo.getBeeHost(), clientInfo.getBeePort(), clientInfo.getConnectionTimeout());
-            transport.writePacket(new ConnectReq(clientInfo.getUrl(), clientInfo.getApplication()), ConnectResp.class)
-                    .await(clientInfo.getConnectionTimeout(), TimeUnit.SECONDS);
+            Transport transport = new Transport(clientInfo.getBeeHost(), clientInfo.getBeePort(),
+                    clientInfo.getConnectionTimeout());
+            ConnectResp resp = transport
+                    .writePacket(new ConnectReq(clientInfo.getUrl(), clientInfo.getApplication()), ConnectResp.class)
+                    .await(clientInfo.getConnectionTimeout() + 1, TimeUnit.SECONDS);
+
+            if (!resp.isOk()) {
+                throw resp.getException();
+            }
             return transport;
         } catch (Exception e) {
             throw new BeeException(e);
@@ -173,7 +170,8 @@ class BeeConnection implements Connection, Closeable {
     }
 
     @Override
-    public PreparedStatement prepareStatement(String sql, int resultSetType, int resultSetConcurrency) throws SQLException {
+    public PreparedStatement prepareStatement(String sql, int resultSetType, int resultSetConcurrency)
+            throws SQLException {
         throw new NotSupportException();
     }
 
@@ -223,17 +221,20 @@ class BeeConnection implements Connection, Closeable {
     }
 
     @Override
-    public Statement createStatement(int resultSetType, int resultSetConcurrency, int resultSetHoldability) throws SQLException {
+    public Statement createStatement(int resultSetType, int resultSetConcurrency, int resultSetHoldability)
+            throws SQLException {
         throw new NotSupportException();
     }
 
     @Override
-    public PreparedStatement prepareStatement(String sql, int resultSetType, int resultSetConcurrency, int resultSetHoldability) throws SQLException {
+    public PreparedStatement prepareStatement(String sql, int resultSetType, int resultSetConcurrency,
+            int resultSetHoldability) throws SQLException {
         return prepareStatement(sql);
     }
 
     @Override
-    public CallableStatement prepareCall(String sql, int resultSetType, int resultSetConcurrency, int resultSetHoldability) throws SQLException {
+    public CallableStatement prepareCall(String sql, int resultSetType, int resultSetConcurrency,
+            int resultSetHoldability) throws SQLException {
         throw new NotSupportException();
     }
 

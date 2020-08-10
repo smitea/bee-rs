@@ -17,6 +17,7 @@ public class ConnectReq implements Encoder {
     public ByteBuf encode() throws Exception {
         ByteBuf buf = Unpooled.directBuffer();
         writeString(buf, url);
+        writeString(buf, application);
         return buf;
     }
 

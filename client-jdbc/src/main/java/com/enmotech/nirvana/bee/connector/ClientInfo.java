@@ -21,7 +21,7 @@ public class ClientInfo {
 
     private final String beeHost;
     private final int beePort;
-    private final Properties properties;
+    private Properties properties;
 
     public ClientInfo(String beeHost, int beePort, Properties properties) {
         this.beeHost = beeHost;

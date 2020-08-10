@@ -28,6 +28,7 @@ pub(crate) const PACKET_LEN: usize = 21;
 pub(crate) const INVALID_BASE_CODE: i32 = 0x0C;
 pub(crate) const INVALID_DATA_CODE: i32 = code!(INVALID_BASE_CODE, 0x01);
 
+#[derive(Clone,Debug)]
 #[repr(u8)]
 enum TypeSize {
     NIL = 0x00,
@@ -135,6 +136,7 @@ pub fn read_value<T: TryFrom<Value, Error = Error> + ToType>(
 
 pub fn read_src_value(src: &mut Cursor<&BytesMut>) -> Result<Value> {
     let d_type = TypeSize::try_from(src.get_u8())?;
+    info!("data type : {:?}", d_type);
     let value = match d_type {
         TypeSize::NIL => Value::Nil,
         TypeSize::STRING => {
@@ -257,6 +259,7 @@ impl Decoder for PacketCodec {
                 }
             };
 
+            info!("decode data end : {:?}",data);
             let crc = buf.get_u64();
             info!("recv crc : {:x}", crc);
             if crc != len + (PACKET_LEN as u64) {

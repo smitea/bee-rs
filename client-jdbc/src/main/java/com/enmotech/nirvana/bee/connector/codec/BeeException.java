@@ -34,4 +34,9 @@ public class BeeException extends SQLException {
     public String getMsg() {
         return msg;
     }
+
+    @Override
+    public String toString() {
+        return "BEE-" + code + ":" + msg;
+    }
 }

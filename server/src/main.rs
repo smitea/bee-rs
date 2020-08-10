@@ -77,9 +77,12 @@ async fn start(config: Config) -> Result<(), Box<dyn Error>> {
     print_headers(&config)?;
 
     let mut listener = TcpListener::bind(&addr).await?;
-
     loop {
         let (stream, addr) = listener.accept().await?;
+        stream.set_nodelay(true)?;
+        stream.set_keepalive(Some(Duration::from_secs(10)))?;
+        stream.set_recv_buffer_size(1024 * 10)?;
+        stream.set_send_buffer_size(1024 * 10)?;
         tokio::spawn(async move {
             info!(target: CONNECT, "{} - connected", addr);
             let (reader, writer) = stream.into_split();
@@ -123,7 +126,20 @@ async fn process<'a>(
             target: CONNECT,
             "[{}] - connecting to {} ...", req.application, req.url
         );
-        (new_connection(&req.url)?, req.application)
+        match new_connection(&req.url) {
+            Ok(connection) => {
+                writer_framed
+                    .send(Packet::ConnectResp(ConnectionResp::Ok))
+                    .await?;
+                (connection, req.application)
+            }
+            Err(err) => {
+                writer_framed
+                    .send(Packet::ConnectResp(ConnectionResp::Error(err.clone())))
+                    .await?;
+                return Err(Box::new(err));
+            }
+        }
     } else {
         return Err(Box::new(std::io::Error::new(
             ErrorKind::Other,

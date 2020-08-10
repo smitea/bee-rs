@@ -44,14 +44,15 @@ public interface Decoder extends Protocol {
 
     default void assertCode(ByteBuf buf) throws BeeException {
         int code = buf.readInt();
-        try{
+        try {
             String msg = read256String(buf);
             if (code != 0x00) {
                 throw new BeeException(code, msg);
             }
-        }catch (Exception e){
-
+        } catch (BeeException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new BeeException(e);
         }
-
     }
 }
