@@ -28,7 +28,7 @@ pub(crate) const PACKET_LEN: usize = 21;
 pub(crate) const INVALID_BASE_CODE: i32 = 0x0C;
 pub(crate) const INVALID_DATA_CODE: i32 = code!(INVALID_BASE_CODE, 0x01);
 
-#[derive(Clone,Debug)]
+#[derive(Clone, Debug)]
 #[repr(u8)]
 enum TypeSize {
     NIL = 0x00,
@@ -136,7 +136,7 @@ pub fn read_value<T: TryFrom<Value, Error = Error> + ToType>(
 
 pub fn read_src_value(src: &mut Cursor<&BytesMut>) -> Result<Value> {
     let d_type = TypeSize::try_from(src.get_u8())?;
-    info!("data type : {:?}", d_type);
+    debug!("data type : {:?}", d_type);
     let value = match d_type {
         TypeSize::NIL => Value::Nil,
         TypeSize::STRING => {
@@ -219,11 +219,11 @@ impl Decoder for PacketCodec {
                     format!("invalid head : {:?}", head),
                 ));
             }
-            info!("recv head : {:x}", head);
+            debug!("recv head : {:x}", head);
             let cmd = buf.get_u8();
-            info!("recv type : {:x}", cmd);
+            debug!("recv type : {:x}", cmd);
             let len = buf.get_u64();
-            info!("recv len : {:x}", len);
+            debug!("recv len : {:x}", len);
 
             if (data_size) < (len as usize + PACKET_LEN) {
                 return Ok(None);
@@ -233,7 +233,7 @@ impl Decoder for PacketCodec {
             data.resize(len as usize, SPACE_BYTE);
 
             buf.read_exact(&mut data)?;
-            info!("recv data : {:x}", data);
+            debug!("recv data : {:x}", data);
             let data = match cmd {
                 0x00 => match ConnectionReqCodec.decode(&mut data)? {
                     Some(data) => Packet::ConnectReq(data),
@@ -259,9 +259,9 @@ impl Decoder for PacketCodec {
                 }
             };
 
-            info!("decode data end : {:?}",data);
+            debug!("decode data end : {:?}", data);
             let crc = buf.get_u64();
-            info!("recv crc : {:x}", crc);
+            debug!("recv crc : {:x}", crc);
             if crc != len + (PACKET_LEN as u64) {
                 return Err(Error::other(
                     INVALID_DATA_CODE,
@@ -272,7 +272,7 @@ impl Decoder for PacketCodec {
             let mut end = BytesMut::new();
             end.resize(2, 0x00);
             buf.read(&mut end)?;
-            info!("recv end : {:x}", end);
+            debug!("recv end : {:x}", end);
             if end.to_vec() != END {
                 return Err(Error::other(
                     INVALID_DATA_CODE,
@@ -403,11 +403,6 @@ mod test {
     }
 
     #[test]
-    fn test_connect_req_failed() {
-        let bytes = b"\xff\xff\x00\x00\x00\x00\x00\x00\x00\x00\x64\x01\x00\x00\x00\x5f\x73\x71\x6c\x69\x74\x65\x3a\x72\x65\x6d\x6f\x74\x65\x3a\x70\x61\x73\x73\x77\x6f\x72\x64\x3a\x2f\x2f\x6f\x72\x61\x63\x6c\x65\x3a\x61\x64\x6d\x69\x6e\x40\x31\x32\x37\x2e\x30\x2e\x30\x2e\x31\x3a\x32\x30\x30\x30\x32\x2f\x62\x65\x65\x3f\x61\x70\x70\x6c\x69\x63\x61\x74\x69\x6f\x6e\x3d\x6a\x64\x62\x63\x26\x63\x6f\x6e\x6e\x65\x63\x74\x69\x6f\x6e\x5f\x74\x69\x6d\x65\x6f\x75\x74\x3d\x35\x00\x00\x00\x00\x00\x00\x00\x79\x0d\x0a";
-    }
-
-    #[test]
     fn test_statement_req() {
         let _ = env_logger::builder()
             .is_test(true)
@@ -494,5 +489,23 @@ mod test {
         );
         let rs = codec.decode(&mut dist).unwrap().unwrap();
         assert_eq!(rs, packet);
+    }
+
+    #[test]
+    fn test() {
+        use bytes::BufMut;
+
+        let bytes = b"\xff\xff\x02\x00\x00\x00\x00\x00\x00\x01\x89\x03\x00\x00\x00\x00\x00\x00\x00\x01\x01\x00\x00\x01\x72\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x53\x45\x4c\x45\x43\x54\x20\x20\x67\x65\x74\x28\x6f\x75\x74\x70\x75\x74\x2c\x30\x2c\x27\x54\x45\x58\x54\x27\x2c\x27\x27\x29\x20\x61\x73\x20\x66\x69\x6c\x65\x73\x79\x73\x74\x65\x6d\x2c\x0a\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x67\x65\x74\x28\x6f\x75\x74\x70\x75\x74\x2c\x31\x2c\x27\x49\x4e\x54\x27\x2c\x30\x29\x20\x61\x73\x20\x74\x6f\x74\x61\x6c\x2c\x0a\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x67\x65\x74\x28\x6f\x75\x74\x70\x75\x74\x2c\x32\x2c\x27\x49\x4e\x54\x27\x2c\x30\x29\x20\x61\x73\x20\x75\x73\x65\x64\x2c\x0a\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x67\x65\x74\x28\x6f\x75\x74\x70\x75\x74\x2c\x33\x2c\x27\x49\x4e\x54\x27\x2c\x30\x29\x20\x61\x73\x20\x61\x76\x61\x69\x6c\x0a\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x46\x52\x4f\x4d\x20\x28\x53\x45\x4c\x45\x43\x54\x20\x73\x70\x6c\x69\x74\x5f\x73\x70\x61\x63\x65\x28\x6c\x69\x6e\x65\x29\x20\x61\x73\x20\x6f\x75\x74\x70\x75\x74\x20\x46\x52\x4f\x4d\x20\x72\x65\x6d\x6f\x74\x65\x5f\x73\x68\x65\x6c\x6c\x28\x27\x64\x66\x20\x2d\x6b\x27\x2c\x31\x30\x29\x20\x0a\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x57\x48\x45\x52\x45\x20\x6c\x69\x6e\x65\x20\x4e\x4f\x54\x20\x4c\x49\x4b\x45\x20\x27\x25\x46\x69\x6c\x65\x73\x79\x73\x74\x65\x6d\x25\x27\x20\x41\x4e\x44\x20\x6c\x69\x6e\x65\x20\x4e\x4f\x54\x20\x4c\x49\x4b\x45\x20\x27\x25\x74\x6d\x70\x25\x27\x29\x03\x00\x00\x00\x00\x00\x00\x00\x04\x00\x00\x00\x00\x00\x00\x01\x9e\x0d\x0a".to_vec();
+        let _ = env_logger::builder()
+            .is_test(true)
+            .filter_level(log::LevelFilter::Debug)
+            .try_init();
+
+        let mut dist = BytesMut::new();
+        dist.put(&bytes[..]);
+        let mut codec = PacketCodec;
+        let rs = codec.decode(&mut dist).unwrap();
+
+        info!("rs: {:?}",rs);
     }
 }

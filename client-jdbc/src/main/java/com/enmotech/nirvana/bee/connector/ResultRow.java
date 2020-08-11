@@ -99,7 +99,7 @@ public class ResultRow {
 
     private <T> T findValue(int index) {
         //noinspection unchecked
-        return (T) values[index];
+        return (T) values[index].getValue();
     }
 
     public int findIndex(final String name) {

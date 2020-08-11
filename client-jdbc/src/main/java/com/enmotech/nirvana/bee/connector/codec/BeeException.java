@@ -3,7 +3,6 @@ package com.enmotech.nirvana.bee.connector.codec;
 import java.sql.SQLException;
 
 public class BeeException extends SQLException {
-    static int SUCCESS = 0x00;
     static int OTHER_CODE = -1;
 
     private final int code;
@@ -15,8 +14,8 @@ public class BeeException extends SQLException {
         this.msg = msg;
     }
 
-    public BeeException(Exception e) {
-        super(e.getMessage(), "BEE-" + OTHER_CODE, OTHER_CODE, e);
+    public BeeException(String msg, Exception e) {
+        super(msg, "BEE-" + OTHER_CODE, OTHER_CODE, e);
         if (e instanceof BeeException) {
             BeeException old = (BeeException) e;
             this.code = old.code;

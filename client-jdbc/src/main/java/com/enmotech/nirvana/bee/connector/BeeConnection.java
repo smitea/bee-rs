@@ -5,6 +5,7 @@ import com.enmotech.nirvana.bee.connector.codec.ConnectReq;
 import com.enmotech.nirvana.bee.connector.codec.ConnectResp;
 import com.enmotech.nirvana.bee.connector.codec.NotConnectedException;
 import com.enmotech.nirvana.bee.connector.codec.NotSupportException;
+
 import java.io.Closeable;
 import java.sql.Array;
 import java.sql.Blob;
@@ -53,7 +54,11 @@ class BeeConnection implements Connection, Closeable {
             }
             return transport;
         } catch (Exception e) {
-            throw new BeeException(e);
+            String msg = e.getMessage();
+            if (msg == null) {
+                msg = e.getLocalizedMessage();
+            }
+            throw new BeeException(msg, e);
         }
     }
 
@@ -228,13 +233,13 @@ class BeeConnection implements Connection, Closeable {
 
     @Override
     public PreparedStatement prepareStatement(String sql, int resultSetType, int resultSetConcurrency,
-            int resultSetHoldability) throws SQLException {
+                                              int resultSetHoldability) throws SQLException {
         return prepareStatement(sql);
     }
 
     @Override
     public CallableStatement prepareCall(String sql, int resultSetType, int resultSetConcurrency,
-            int resultSetHoldability) throws SQLException {
+                                         int resultSetHoldability) throws SQLException {
         throw new NotSupportException();
     }
 

@@ -40,11 +40,11 @@ public class ClientInfo {
         String connectionResource = (String) properties.remove(CONNECTION_RESOURCE);
 
         if (sessionMode == null || sessionMode.isEmpty()) {
-            throw new BeeException(new IllegalArgumentException("must setting 'session_mode'"));
+            throw new BeeException("must setting 'session_mode'", new IllegalArgumentException());
         }
 
         if (datasourceMode == null || datasourceMode.isEmpty()) {
-            throw new BeeException(new IllegalArgumentException("must setting 'datasource_mode'"));
+            throw new BeeException("must setting 'datasource_mode'", new IllegalArgumentException());
         }
 
         if (connectionMode == null || connectionMode.isEmpty()) {
@@ -59,10 +59,10 @@ public class ClientInfo {
                 builder.append(username).append(":").append(password).append("@");
             }
             if (connectionHost == null || connectionHost.isEmpty()) {
-                throw new BeeException(new IllegalArgumentException("must setting 'connection_host'"));
+                throw new BeeException("must setting 'connection_host'", new IllegalArgumentException());
             }
             if (connectionPort == null || connectionPort.isEmpty()) {
-                throw new BeeException(new IllegalArgumentException("must setting 'connection_port'"));
+                throw new BeeException("must setting 'connection_port'", new IllegalArgumentException());
             }
             builder.append(connectionHost).append(":").append(connectionPort);
             if (connectionResource != null && !connectionResource.isEmpty()) {

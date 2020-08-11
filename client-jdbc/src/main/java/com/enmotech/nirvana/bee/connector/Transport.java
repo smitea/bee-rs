@@ -166,7 +166,11 @@ public class Transport implements Closeable {
                 promise.onSuccess(null);
             }
         } catch (Exception e) {
-            throw new BeeException(e);
+            String msg = e.getMessage();
+            if (msg == null) {
+                msg = e.getLocalizedMessage();
+            }
+            throw new BeeException(msg, e);
         }
         return promise;
     }
@@ -181,7 +185,11 @@ public class Transport implements Closeable {
         try {
             writePacket(encoder);
         } catch (Exception e) {
-            throw new BeeException(e);
+            String msg = e.getMessage();
+            if (msg == null) {
+                msg = e.getLocalizedMessage();
+            }
+            throw new BeeException(msg, e);
         }
         packetQueue.offer(handler);
     }

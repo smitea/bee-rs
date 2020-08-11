@@ -52,7 +52,11 @@ public interface Decoder extends Protocol {
         } catch (BeeException e) {
             throw e;
         } catch (Exception e) {
-            throw new BeeException(e);
+            String msg = e.getMessage();
+            if (msg == null) {
+                msg = e.getLocalizedMessage();
+            }
+            throw new BeeException(msg, e);
         }
     }
 }

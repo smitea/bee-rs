@@ -220,7 +220,6 @@ mod test {
             script: "SELECT *FROM m_test()".to_owned(),
             timeout: 10,
         };
-
         let mut dist = BytesMut::new();
         codec.encode(req.clone(), &mut dist).unwrap();
         info!("{:x}", dist);

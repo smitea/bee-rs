@@ -31,8 +31,13 @@ public class Bytes implements Closeable, Blob {
         byte[] bytes = new byte[length];
         try {
             int size = this.stream.read(bytes, (int) pos, length);
+            assert size == length;
         } catch (IOException e) {
-            throw new BeeException(e);
+            String msg = e.getMessage();
+            if (msg == null) {
+                msg = e.getLocalizedMessage();
+            }
+            throw new BeeException(msg, e);
         }
         return bytes;
     }

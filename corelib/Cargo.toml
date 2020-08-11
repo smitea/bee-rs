@@ -10,9 +10,8 @@ parking_lot         = {version = "0.11"}
 async-std           = {version = "*"}
 log                 = {version = "*"}
 state               = {version = "0.4"}
-csv                 = {version = "*"}
 bincode             = {version = "*"}
-bee-codegen         = {path = "../codegen", version = "0.1.0"}
+bee-codegen         = {version = "0.1.0", path = "../codegen"}
 
 ssh                 = {optional = true, git = "https://github.com/sMitea/ssh.git"}
 heim                = {optional = true, git = "https://github.com/sMitea/heim.git", features = ["host","memory","cpu","disk","runtime-async-std"]}

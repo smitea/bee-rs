@@ -45,6 +45,7 @@ public class BeeResultSet implements ResultSet {
         if (response.hasNext()) {
             row = response.next();
             index += 1;
+            return true;
         }
         return false;
     }
@@ -109,7 +110,11 @@ public class BeeResultSet implements ResultSet {
         try {
             return bytes.toBytes();
         } catch (IOException e) {
-            throw new BeeException(e);
+            String msg = e.getMessage();
+            if (msg == null) {
+                msg = e.getLocalizedMessage();
+            }
+            throw new BeeException(msg, e);
         }
     }
 
@@ -193,7 +198,11 @@ public class BeeResultSet implements ResultSet {
         try {
             return row.getBytes(columnLabel).toBytes();
         } catch (IOException e) {
-            throw new BeeException(e);
+            String msg = e.getMessage();
+            if (msg == null) {
+                msg = e.getLocalizedMessage();
+            }
+            throw new BeeException(msg, e);
         }
     }
 

@@ -1,4 +1,8 @@
 target
 .vscode
 .idea
+.settings
+.classpath
+.project
+*.iml
 Cargo.lock

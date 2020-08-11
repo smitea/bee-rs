@@ -25,7 +25,7 @@ public class BeeStatement implements Statement{
     private final Transport transport;
 
     private String script;
-    private int queryTimeout;
+    private int queryTimeout = 5;
 
     public BeeStatement(int id, BeeConnection connection, Transport transport) {
         this.id = id;

@@ -32,19 +32,12 @@ public interface Encoder extends Protocol {
     }
 
     default void writeInteger(ByteBuf packet, Long value) throws Exception {
-        packet.writeByte(DataType.NUMBER.getType());
+        packet.writeByte(DataType.INTEGER.getType());
         packet.writeLong(value);
     }
 
     default void writeDouble(ByteBuf packet, Double value) throws Exception {
         packet.writeByte(DataType.NUMBER.getType());
         packet.writeDouble(value);
-    }
-
-    default Bytes writeBytes(ByteBuf packet) throws Exception {
-        long len = packet.readUnsignedInt();
-        byte[] bytes = new byte[(int) len];
-        packet.readBytes(bytes);
-        return new Bytes(len, new ByteArrayInputStream(bytes));
     }
 }

@@ -54,15 +54,11 @@ public class StatementResp implements Decoder, Response {
     public void decode(ByteBuf packet) {
         try {
             packet.markReaderIndex();
-            id = readInteger(packet);
+            id = packet.readUnsignedInt();
             CallState state = CallState.valueOf(packet.readByte());
-            int len = packet.readInt();
-            ByteBuf data = Unpooled.buffer(len);
-            packet.readBytes(data, len);
-
             switch (state) {
                 case Columns:
-                    ColumnInfo[] header = decodeHeader(data);
+                    ColumnInfo[] header = decodeHeader(packet);
                     try {
                         lock.lock();
                         this.header = header;
@@ -73,7 +69,7 @@ public class StatementResp implements Decoder, Response {
                     }
                     break;
                 case Row:
-                    Value[] values = decodeRow(data);
+                    Value[] values = decodeRow(packet);
                     try {
                         lock.lock();
                         if (this.header != null && values.length == this.header.length) {
@@ -105,8 +101,12 @@ public class StatementResp implements Decoder, Response {
         } catch (IndexOutOfBoundsException e) {
             packet.resetReaderIndex();
         } catch (Exception e) {
+            String msg = e.getMessage();
+            if (msg == null) {
+                msg = e.getLocalizedMessage();
+            }
             lock.lock();
-            exception = new BeeException(e);
+            exception = new BeeException(msg,e);
             hasAbort.set(true);
 
             headSignal.signal();
@@ -122,7 +122,7 @@ public class StatementResp implements Decoder, Response {
             lock.lock();
             if (!hasHeader.get()) {
                 if (!headSignal.await(timeout, unit)) {
-                    throw new TimeoutException();
+                    throw new TimeoutException("await timeout");
                 }
             }
             if (header != null) {
@@ -131,7 +131,11 @@ public class StatementResp implements Decoder, Response {
                 return getColumns();
             }
         } catch (Exception e) {
-            throw new BeeException(e);
+            String msg = e.getMessage();
+            if (msg == null) {
+                msg = e.getLocalizedMessage();
+            }
+            throw new BeeException(msg, e);
         } finally {
             lock.unlock();
             checkThrowable();
@@ -167,9 +171,13 @@ public class StatementResp implements Decoder, Response {
                     throw new TimeoutException();
                 }
             }
-            return !abort && !rowQueue.isEmpty();
+            return !abort || !rowQueue.isEmpty();
         } catch (Exception e) {
-            throw new BeeException(e);
+            String msg = e.getMessage();
+            if (msg == null) {
+                msg = e.getLocalizedMessage();
+            }
+            throw new BeeException(msg,e);
         } finally {
             lock.unlock();
             checkThrowable();
@@ -186,10 +194,10 @@ public class StatementResp implements Decoder, Response {
         int headSize = data.readByte();
         ColumnInfo[] header = new ColumnInfo[headSize];
         for (int i = 0; i < headSize; i++) {
-            int type = data.readByte();
             int dataLen = data.readByte();
             ByteBuf bytes = data.readBytes(dataLen);
             String name = bytes.toString(Charset.defaultCharset());
+            int type = data.readByte();
             header[i] = new ColumnInfo(name, DataType.valueOf(type));
         }
         return header;
@@ -204,14 +212,12 @@ public class StatementResp implements Decoder, Response {
                 DataType dataType = DataType.valueOf(type);
                 switch (dataType) {
                     case BOOLEAN:
-
                         values[i] = Value.bool(readBoolean(data));
                         break;
                     case NIL:
                         values[i] = Value.nil();
                         break;
                     case INTEGER:
-                        data.readByte();
                         values[i] = Value.integer(readInteger(data));
                         break;
                     case STRING:
@@ -226,7 +232,11 @@ public class StatementResp implements Decoder, Response {
                 }
             }
         } catch (Exception e) {
-            throw new BeeException(e);
+            String msg = e.getMessage();
+            if (msg == null) {
+                msg = e.getLocalizedMessage();
+            }
+            throw new BeeException(msg,e);
         }
         return values;
     }
@@ -259,7 +269,6 @@ public class StatementResp implements Decoder, Response {
             }
             return CallState.Abort;
         }
-
     }
 
     public Long getId() {
