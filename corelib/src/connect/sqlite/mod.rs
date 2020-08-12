@@ -37,7 +37,7 @@ impl crate::Configure for SqliteSession {
     where
         F: Fn(&Args) -> crate::Result<V> + Send + Sync + UnwindSafe + 'static,
     {
-        info!("register function - {}", name);
+        debug!("register function - {}", name);
         let lock = self.connection.lock();
 
         // 扩展 Sqlite 函数
@@ -62,7 +62,7 @@ impl crate::Configure for SqliteSession {
 
     fn register_source(&self, ds: Box<dyn DataSource>) -> crate::Result<()> {
         let name = ds.name().to_string();
-        info!("register datasource - {}", name);
+        debug!("register datasource - {}", name);
         let aux: Option<Arc<Box<dyn crate::DataSource>>> = Some(Arc::new(ds));
         let lock = self.connection.lock();
         lock.create_module(name.as_str(), eponymous_only_module::<SQLTab>(), aux)?;
@@ -75,11 +75,6 @@ impl crate::Connection for SqliteSession {
         let (request, response) = new_req(Args::new(), timeout);
         let conn = self.connection.clone();
         let script = script.to_string();
-
-        info!(
-            "new_statement for script: {} with timeout = {:?}",
-            script, timeout
-        );
 
         // 异步接收该结果，该异步处于协程中
         let _ = task::spawn(async move {

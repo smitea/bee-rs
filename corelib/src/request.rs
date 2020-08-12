@@ -143,7 +143,7 @@ fn valid_row(columns: &Columns, row: &Row) -> Result<()> {
     for (i, (name, d_type)) in columns.iter().enumerate() {
         let value = row.get_value(i)?;
         let new_type = &value.get_type();
-        if d_type != new_type {
+        if d_type != new_type && !value.is_nil() {
             return Err(Error::invalid_type(format!(
                 "invalid row from {:?} - the col[{}] is {} but the row[{}] is {}",
                 row, name, d_type, name, new_type

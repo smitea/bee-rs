@@ -211,7 +211,7 @@ impl Decoder for PacketCodec {
     fn decode(&mut self, src: &mut bytes::BytesMut) -> Result<Option<Self::Item>> {
         let data_size = src.len();
         if data_size >= PACKET_LEN {
-            info!("recv packet : {:x} and size = {}", src, data_size);
+            debug!("recv packet : {:x} and size = {}", src, data_size);
             let mut buf: Cursor<&BytesMut> = Cursor::new(&src);
             // Head
             let mut head: BytesMut = BytesMut::new();

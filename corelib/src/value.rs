@@ -152,6 +152,14 @@ impl Value {
             Value::Nil => DataType::Nil,
         }
     }
+
+    pub fn is_nil(&self) -> bool{
+        if let Value::Nil = self{
+            return true;
+        }else{
+            return false;
+        }
+    }
 }
 
 #[test]

@@ -12,8 +12,8 @@ use std::{
     env, io,
     mem::replace,
     net::SocketAddr,
+    sync::atomic::{AtomicUsize, Ordering},
     time::{Duration, SystemTime},
-    sync::atomic::{AtomicUsize,Ordering},
 };
 use tokio::net::tcp::{OwnedReadHalf, OwnedWriteHalf};
 use tokio::net::TcpStream;
@@ -40,7 +40,6 @@ impl Completer for NoCommentCompleter {
         if let EventKind::BeforeComplete = event.kind {
             let (_, pos) = event.editor.get_words_and_cursor_position();
 
-            // Figure out of we are completing a command (the first word) or a filename.
             let filename = match pos {
                 CursorPosition::InWord(i) => i > 0,
                 CursorPosition::InSpace(Some(_), _) => true,
@@ -51,9 +50,9 @@ impl Completer for NoCommentCompleter {
 
             if filename {
                 let completer = FilenameCompleter::new(Some(current_dir().unwrap()));
-                replace(&mut self.inner, Some(completer));
+                let _ = replace(&mut self.inner, Some(completer));
             } else {
-                replace(&mut self.inner, None);
+                let _ = replace(&mut self.inner, None);
             }
         }
     }
@@ -87,34 +86,54 @@ async fn main() {
         if is_exit {
             break;
         }
-        buffer.push_str(&line);
-
+        buffer.push_str(&line.trim());
+        buffer.push('\n');
         if is_end(&line) {
-            match handler_line(&buffer) {
+            let buf = buffer.trim().to_owned();
+            let buf = &buf[0..(buf.len() - 1)];
+            match handler_line(&buf) {
                 ScriptCommand::Use(url) => {
-                    if url.trim().is_empty() {
+                    if url.is_empty() {
                         println!("url is empty");
                     } else {
                         match new_connection(&addr, &hostname, url).await {
                             Ok(conn) => {
-                                if let Some(old_conn) = connection{
+                                // 释放旧的连接
+                                if let Some(old_conn) = connection {
                                     drop(old_conn);
                                 }
                                 connection = Some(conn);
                             }
                             Err(err) => {
-                                println!("connected to {} is failed: BEE-{}[{}]",url, err.get_code(),err.get_msg());
+                                println!(
+                                    "connected to {} is failed: BEE-{}[{}]",
+                                    url,
+                                    err.get_code(),
+                                    err.get_msg()
+                                );
                             }
                         }
                     }
                 }
                 ScriptCommand::Script(script) => {
-                    if let Some((writer,reader)) = &mut connection{
+                    if let Some((writer, reader)) = &mut connection {
                         let id = req_id.fetch_add(1, Ordering::Release);
-                        if let Err(err) = printf_statement(id as u32, script, Duration::from_secs(10), writer, reader).await{
-                            println!("request statement is failed: BEE-{}[{}]", err.get_code(),err.get_msg())
+                        if let Err(err) = printf_statement(
+                            id as u32,
+                            script,
+                            Duration::from_secs(10),
+                            writer,
+                            reader,
+                        )
+                        .await
+                        {
+                            println!(
+                                "request statement is failed: BEE-{}[{}]",
+                                err.get_code(),
+                                err.get_msg()
+                            )
                         }
-                    }else{
+                    } else {
                         println!("not connected.");
                     }
                 }
@@ -171,7 +190,7 @@ fn handler_line(line: &str) -> ScriptCommand {
     if line.ends_with("quit") || line.ends_with("exit") {
         ScriptCommand::Exit
     } else if line.starts_with("use") {
-        ScriptCommand::Use(line.split("use").last().unwrap_or(""))
+        ScriptCommand::Use(line.split("use").last().unwrap_or("").trim())
     } else {
         ScriptCommand::Script(line)
     }
@@ -285,6 +304,7 @@ async fn read_statement(
             StatementStateResp::Error(err) => {
                 table.add_row(row!["code", "msg"]);
                 table.add_row(row![&err.get_code().to_string(), err.get_msg()]);
+                break;
             }
         }
     }

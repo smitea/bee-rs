@@ -1,9 +1,9 @@
 use bee_codec::*;
-use std::result::Result;
 use bee_core::new_connection;
 use bee_core::{columns, new_req, row, Args, Connection, Promise, Statement, ToData};
 use colored::*;
-use log::{error, info};
+use log::{debug, error, info};
+use std::result::Result;
 use tokio::net::tcp::{OwnedReadHalf, OwnedWriteHalf};
 use tokio::net::TcpListener;
 use tokio::stream::StreamExt;
@@ -21,6 +21,7 @@ use structopt::StructOpt;
 const BEE: &str = "bee";
 const CONNECT: &str = "connection";
 const REQUEST: &str = "statements";
+const QUERY_STATE_SQL: &str = "show network_states";
 
 type State = Arc<Mutex<HashMap<SocketAddr, ClientInfo>>>;
 
@@ -88,7 +89,7 @@ enum ClientState {
 
 impl ToData for ClientInfo {
     fn columns() -> bee_core::Columns {
-        columns![String: "addr",String: "app", String: "url", Integer: "sid", String: "statement_script",Number: "timeout", String: "state"]
+        columns![String: "addr",String: "application", String: "url", Integer: "sid", String: "script",Number: "used(s)", String: "status"]
     }
     fn to_row(self) -> bee_core::Row {
         let mut row = row![
@@ -102,7 +103,7 @@ impl ToData for ClientInfo {
                 row.push(req.id);
                 row.push(req.script);
                 row.push(used);
-                row.push("process");
+                row.push("idle");
             }
             ClientState::Process(req) => {
                 row.push(req.id);
@@ -220,19 +221,21 @@ async fn process<'a>(
     }
 
     let app = req.application;
-    info!(target: CONNECT, "[{}] - connection", app);
+    info!(target: CONNECT, "[{}] - connected.", app);
     while let Some(Ok(Packet::StatementReq(req))) = reader_framed.next().await {
         {
-            // 更新状态信息
-            let mut state = state.lock().await;
-            state.entry(addr).and_modify(|c| {
-                c.state = ClientState::Process(req.clone());
-            });
+            if req.script != QUERY_STATE_SQL {
+                // 更新状态信息
+                let mut state = state.lock().await;
+                state.entry(addr).and_modify(|c| {
+                    c.state = ClientState::Process(req.clone());
+                });
+            }
         }
         let now = SystemTime::now();
         match new_statement(&connection, state.clone(), &app, &req, &mut writer_framed).await {
             Ok(_) => {
-                error!(target: REQUEST, "[{}-{}] is ok", app, req.id);
+                info!(target: REQUEST, "[{}-{}] is ok", app, req.id);
                 // 采集结束
                 writer_framed
                     .send(Packet::StatementResp(StatementResp::new(
@@ -255,14 +258,16 @@ async fn process<'a>(
         let elapsed = now.elapsed()?;
         let used = elapsed.as_secs_f64();
         {
-            // 更新状态信息
-            let mut state = state.lock().await;
-            state.entry(addr).and_modify(|c| {
-                c.state = ClientState::Idle(req.clone(), used);
-            });
+            if req.script != QUERY_STATE_SQL {
+                // 更新状态信息
+                let mut state = state.lock().await;
+                state.entry(addr).and_modify(|c| {
+                    c.state = ClientState::Idle(req.clone(), used);
+                });
+            }
         }
     }
-    info!(target: CONNECT, "[{}] - disconnection", app);
+    info!(target: CONNECT, "[{}] - disconnected.", app);
     Ok(())
 }
 
@@ -273,9 +278,12 @@ async fn new_statement<'a>(
     req: &StatementReq,
     writer_framed: &mut FramedWrite<OwnedWriteHalf, PacketCodec>,
 ) -> Result<(), bee_core::Error> {
-    info!(target: REQUEST, "[{}-{}] new statement", app_name, req.id);
+    info!(
+        target: REQUEST,
+        "[{}-{}] process {} in {} s.", app_name, req.id, req.script, req.timeout
+    );
 
-    let statement = if req.script == "show network_states" {
+    let statement = if req.script == QUERY_STATE_SQL {
         // 返回当前所有连接的执行状态
         network_states_resp(state, req).await?
     } else {
@@ -283,9 +291,11 @@ async fn new_statement<'a>(
     };
     let response = statement.wait()?;
     let columns = response.columns();
-    info!(
+
+    let mut row_count = 0;
+    debug!(
         target: REQUEST,
-        "[{}-{}] resp columns - {:?}", app_name, req.id, columns
+        "[{}-{}] responsed columns - {:?}", app_name, req.id, columns
     );
     // 应答列的结构定义
     writer_framed
@@ -297,10 +307,11 @@ async fn new_statement<'a>(
 
     for rs in response {
         let row = rs?;
-        info!(
+        debug!(
             target: REQUEST,
-            "[{}-{}] resp row - {:?}", app_name, req.id, row
+            "[{}-{}] responsed row - {:?}", app_name, req.id, row
         );
+        row_count += 1;
         writer_framed
             .send(Packet::StatementResp(StatementResp::new(
                 StatementStateResp::Row(row),
@@ -308,6 +319,10 @@ async fn new_statement<'a>(
             )))
             .await?;
     }
+    info!(
+        target: REQUEST,
+        "[{}-{}] responsed {} rows.", app_name, req.id, row_count
+    );
     Ok(())
 }
 
