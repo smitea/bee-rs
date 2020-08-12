@@ -14,4 +14,3 @@ futures             = "0.3.0"
 structopt           = "*"
 colored             = "1.9"
 tokio               = {version = "*", features = ["fs","io-std","macros","net","sync"]}
-tokio-util          = {version = "*", features = ["codec"]}

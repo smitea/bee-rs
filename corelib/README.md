@@ -1,6 +1,6 @@
 # Bee Core
 
-该工程提供了一种创新型的数据解析方式，可采用 Lua/SQL 来对主机监控数据爬取和解析的操作。
+Bee 采用一种基于脚本的数据解析方式，可使用 Lua/SQL 来对主机监控数据爬取和解析的操作。
 
 ## 快速开始
 
@@ -403,6 +403,27 @@ SELECT * FROM remote_shell("echo Hello", 10) WHERE line_num = 0
 
 ### get
 
+输入参数: 
+
+1. 字符串数组的字节流(Bytes)
+2. 数组索引
+3. 将要转换的类型: (INT - 有符号64位 整型 | REAL - 有符号64位 浮点型 | TEXT - 字符串类型)(String)
+4. 默认值，如果无法从该字符串数组中获取指定索引处的值，则使用该值转换返回
+
+输出提取并转换后的结果。
+
 ### split_csv
 
+输入参数: 
+
+1. 待分隔的字符串 (String)
+
+输出已分隔完成的字符串数组并采用 [bincode](https://github.com/servo/bincode) 转换为字节流，需要通过 [get](#get) 函数来获取其值。
+
 ### split_space
+
+输入参数: 
+
+1. 待分隔的字符串 (String)
+
+输出已分隔完成的字符串数组并采用 [bincode](https://github.com/servo/bincode) 转换为字节流，需要通过 [get](#get) 函数来获取其值。

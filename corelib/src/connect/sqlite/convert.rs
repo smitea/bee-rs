@@ -114,9 +114,3 @@ impl FromSql for Value {
         return Ok(val);
     }
 }
-
-impl From<csv::Error> for Error {
-    fn from(err: csv::Error) -> Self {
-        Error::invalid_type(err.to_string())
-    }
-}

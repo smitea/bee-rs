@@ -1,14 +1,16 @@
-use bee_core::{code, DataType, Error, Result, ToType, Value};
 use bytes::Buf;
 use bytes::BufMut;
 use bytes::BytesMut;
+use std::io::Read;
+use std::{convert::TryFrom, io::Cursor};
+
+pub use bee_core::{code,DataType, Error, Result, ToType, Value};
 pub use connect::{ConnectionReq, ConnectionReqCodec, ConnectionResp, ConnectionRespCodec};
 pub use statement::{
     StatementReq, StatementReqCodec, StatementResp, StatementRespCodec, StatementStateResp,
 };
-use std::io::Read;
-use std::{convert::TryFrom, io::Cursor};
-use tokio_util::codec::{Decoder, Encoder};
+pub use tokio_util::codec::{Decoder, Encoder};
+pub use tokio_util::codec::{FramedRead, FramedWrite};
 
 #[macro_use]
 extern crate log;
@@ -195,6 +197,8 @@ pub fn read_error(src: &mut Cursor<&BytesMut>) -> Result<Error> {
 pub enum Packet {
     ConnectReq(connect::ConnectionReq),
     ConnectResp(connect::ConnectionResp),
+    PingReq,
+    PingResp,
     StatementReq(statement::StatementReq),
     StatementResp(statement::StatementResp),
 }
@@ -251,6 +255,8 @@ impl Decoder for PacketCodec {
                     Some(data) => Packet::StatementResp(data),
                     None => return Ok(None),
                 },
+                0x04 => Packet::PingReq,
+                0x05 => Packet::PingResp,
                 _ => {
                     return Err(Error::other(
                         INVALID_DATA_CODE,
@@ -312,6 +318,8 @@ impl Encoder<Packet> for PacketCodec {
                 StatementRespCodec.encode(resp, &mut data_bytes)?;
                 0x03
             }
+            Packet::PingReq => 0x04,
+            Packet::PingResp => 0x05,
         };
 
         let len = data_bytes.len() as u64;
@@ -506,6 +514,6 @@ mod test {
         let mut codec = PacketCodec;
         let rs = codec.decode(&mut dist).unwrap();
 
-        info!("rs: {:?}",rs);
+        info!("rs: {:?}", rs);
     }
 }

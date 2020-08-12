@@ -24,19 +24,19 @@ mod test{
         // tmpfs              65536       8     65528   1% /proc/sched_debug
         // tmpfs            1018900       0   1018900   0% /sys/firmware
         assert_remote_lua(r#"
-            local resp = remote_shell("df -k",10);
+            local resp = remote_shell("df -k",10)
             while(resp:has_next())
             do
-                local line = _next["line"];
-                local line_num = _next["line_num"];
+                local line = _next["line"]
+                local line_num = _next["line_num"]
                 if(line_num > 0) then
-                    local cols = split_space(line);
+                    local cols = split_space(line)
                     _request:commit({
                         filesystem  = get(cols,0,"TEXT",""),
                         total       = get(cols,1,"INT",0),
                         used        = get(cols,2,"INT",0),
                         avail       = get(cols,3,"INT",0)
-                    });
+                    })
                 end
             end
         "#, 3,  Duration::from_secs(4));
