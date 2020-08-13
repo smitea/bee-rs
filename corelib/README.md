@@ -2,6 +2,8 @@
 
 Bee 采用一种基于脚本的数据解析方式，可使用 Lua/SQL 来对主机监控数据爬取和解析的操作。
 
+[![Build Status](https://travis-ci.org/sMitea/bee-rs.svg?branch=master)](https://travis-ci.org/sMitea/bee-rs)
+
 ## 快速开始
 
 ### 创建连接
