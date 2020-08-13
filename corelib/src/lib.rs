@@ -9,7 +9,6 @@
     nonstandard_style,
     dead_code,
     deprecated,
-    intra_doc_link_resolution_failure
 )]
 #![warn(
     unused_extern_crates,

@@ -8,6 +8,8 @@ addons:
             - libssh-dev
 cache: cargo
 rust:
+  - stable
+  - beta
   - nightly
 matrix:
   allow_failures:
@@ -15,17 +17,16 @@ matrix:
 
 before_script: |
   CODECOV_TOKEN="c4972349-4171-46d9-b84a-4a3a0b4d86e7"
-  if [[ "$TRAVIS_RUST_VERSION" == nightly ]]; then
+  if [[ "$TRAVIS_RUST_VERSION" == stable ]]; then
     cargo install cargo-tarpaulin
   fi
 
 script:
 - cargo clean
-- cargo build
-- cargo test
+- RUSTFLAGS="-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Coverflow-checks=off -Zno-landing-pads" cargo test
 
 after_success: |
-  if [[ "$TRAVIS_RUST_VERSION" == nightly ]]; then
+  if [[ "$TRAVIS_RUST_VERSION" == stable ]]; then
     cargo tarpaulin --ciserver travis-ci --coveralls $TRAVIS_JOB_ID
     cargo tarpaulin --out Xml
     bash <(curl -s https://codecov.io/bash)
