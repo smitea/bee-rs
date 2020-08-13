@@ -302,7 +302,7 @@ async fn read_statement(
                 break;
             }
             StatementStateResp::Error(err) => {
-                table.add_row(row!["code", "msg"]);
+                table.set_titles(row!["code", "msg"]);
                 table.add_row(row![&err.get_code().to_string(), err.get_msg()]);
                 break;
             }
