@@ -13,7 +13,7 @@ pub fn init_log() {
 #[cfg(feature = "sqlite")]
 pub fn new_ssh_connection_for_sql() -> bee_core::Result<Box<dyn Connection>> {
     bee_core::new_connection(
-        "sqlite:remote:password://oracle:admin@127.0.0.1:20002/bee?connect_timeout=5",
+        "sqlite:remote:password://root:admin@127.0.0.1:20002/bee?connect_timeout=5",
     )
 }
 
@@ -29,7 +29,7 @@ pub fn new_agent_connection_for_sql() -> bee_core::Result<Box<dyn Connection>> {
 #[cfg(feature = "lua")]
 pub fn new_ssh_connection_for_lua() -> bee_core::Result<Box<dyn Connection>> {
     bee_core::new_connection(
-        "lua:remote:password://oracle:admin@127.0.0.1:20002/bee?connect_timeout=5",
+        "lua:remote:password://root:admin@127.0.0.1:20002/bee?connect_timeout=5",
     )
 }
 

@@ -79,6 +79,6 @@ pub fn register_ds<T: Configure>(instance: &Instance, connection: &T) -> Result<
 
 #[cfg(test)]
 fn new_test_sess()  -> Result<Arc<Mutex<Session>>>{
-    let instance: Instance = "sqlite:remote:password://oracle:admin@127.0.0.1:20002/bee?connect_timeout=5".parse()?;
+    let instance: Instance = "sqlite:remote:password://root:admin@127.0.0.1:20002/bee?connect_timeout=5".parse()?;
     new_session(&instance)
 }

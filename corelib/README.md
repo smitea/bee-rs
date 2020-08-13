@@ -17,7 +17,7 @@ Bee 的连接需要提供一种 url 的参数形式, 其规则为 `${sess_mode}:
 use bee_core::Connection;
 
 let conn = bee_core::new_connection(
-    "sqlite:remote:password://oracle:test@127.0.0.1:22/bee?connect_timeout=5",
+    "sqlite:remote:password://root:admin@127.0.0.1:22/bee?connect_timeout=5",
 ).unwrap();
 ```
 
