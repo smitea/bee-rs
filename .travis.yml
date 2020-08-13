@@ -23,7 +23,12 @@ before_script: |
 
 script:
 - cargo clean
-- RUSTFLAGS="-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Coverflow-checks=off -Zno-landing-pads" cargo test
+- | 
+  if [[ "$TRAVIS_RUST_VERSION" == stable ]]; then
+    CARGO_INCREMENTAL=0 RUSTFLAGS="-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Coverflow-checks=off -Zno-landing-pads" cargo test
+  else
+    cargo test
+  fi
 
 after_success: |
   if [[ "$TRAVIS_RUST_VERSION" == stable ]]; then

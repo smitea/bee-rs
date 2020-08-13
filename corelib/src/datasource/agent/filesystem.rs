@@ -15,7 +15,6 @@ pub struct Filesystem {
 }
 
 #[datasource]
-#[feature(overlapping_marker_traits)]
 pub fn filesystem(promise: &mut Promise<Filesystem>) -> Result<(), Error> {
     block_on(async {
         let mut partitions = partitions_physical();
