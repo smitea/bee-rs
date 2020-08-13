@@ -20,3 +20,27 @@ pub fn os_info(promise: &mut Promise<OSInfo>) -> Result<()> {
     })?;
     Ok(())
 }
+
+#[test]
+fn test() {
+    use crate::*;
+    let (req, resp) = crate::new_req(crate::Args::new(), std::time::Duration::from_secs(2));
+    {
+        let mut promise = req.head::<OSInfo>().unwrap();
+        os_info(&mut promise).unwrap();
+        drop(req);
+    }
+
+    let resp = resp.wait().unwrap();
+    assert_eq!(
+        &columns![String: "os_type",String: "version",String: "host_name"],
+        resp.columns()
+    );
+
+    let mut index = 0;
+    for row in resp {
+        let _ = row.unwrap();
+        index += 1;
+    }
+    assert!(index > 0);
+}

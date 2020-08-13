@@ -1,4 +1,4 @@
-use crate::{Columns, Instance, Register, Request, Result, Row, Configure};
+use crate::{Columns, Configure, Instance, Register, Request, Result, Row};
 
 #[cfg(feature = "agent")]
 mod agent;

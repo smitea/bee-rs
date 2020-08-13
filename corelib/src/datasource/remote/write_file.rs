@@ -1,19 +1,26 @@
 use crate::{datasource::Status, Promise, Result, ToData, ToType};
 use ssh::Session;
-use std::sync::{Arc, Mutex};
+use std::{
+    io::Write,
+    path::PathBuf,
+    sync::{Arc, Mutex},
+};
 
 #[datasource]
-pub fn mkdir(
+pub fn write_file(
     session: Arc<Mutex<Session>>,
-    home_dir: String,
-    dir: String,
+    base_path: String,
+    path: String,
+    content: String,
     promise: &mut Promise<Status>,
 ) -> Result<()> {
+    let path: PathBuf = path.parse()?;
     let mut lock = session.lock()?;
-    let mut scp = lock.scp_new(ssh::Mode::RECURSIVE | ssh::Mode::WRITE, &home_dir)?;
-    scp.init()?;
-    scp.push_directory(&dir, 0o755)?;
-
+    let mut channel = lock.scp_new(ssh::Mode::WRITE, base_path)?;
+    channel.init()?;
+    channel.push_file(path, content.len(), 0o644)?;
+    let _ = channel.write(content.as_bytes())?;
+    drop(channel);
     promise.commit(Status { success: true })?;
     Ok(())
 }
@@ -25,10 +32,11 @@ fn test() {
     let (req, resp) = crate::new_req(crate::Args::new(), std::time::Duration::from_secs(2));
     {
         let mut promise = req.head::<Status>().unwrap();
-        mkdir(
+        write_file(
             session,
-            "/u01/app/oracle".to_owned(),
-            "bethune".to_owned(),
+            "/u01/app/oracle".to_string(),
+            "test.log".to_owned(),
+            "hello world".to_string(),
             &mut promise,
         )
         .unwrap();

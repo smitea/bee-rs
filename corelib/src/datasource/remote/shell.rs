@@ -7,7 +7,7 @@ use std::{
 };
 
 #[datasource]
-fn remote_shell(
+fn shell(
     session: Arc<Mutex<Session>>,
     script: String,
     timeout: u32,
@@ -93,4 +93,52 @@ fn decode_output(
         }
     }
     return Ok(());
+}
+
+#[test]
+fn test() {
+    use crate::*;
+    let session = super::new_test_sess().unwrap();
+    let (req, resp) = crate::new_req(crate::Args::new(), std::time::Duration::from_secs(2));
+    {
+        let mut promise = req.head::<BashRow>().unwrap();
+        shell(session,"echo 'Hello world'".to_owned(), 2, &mut promise).unwrap();
+        drop(req);
+    }
+
+    let resp = resp.wait().unwrap();
+    assert_eq!(
+        &columns![String: "line",Integer: "line_num"],
+        resp.columns()
+    );
+
+    let mut index = 0;
+    for row in resp {
+        let row = row.unwrap();
+        let line: String = row.get(0).unwrap();
+        let line_num: i64 = row.get(1).unwrap();
+
+        assert_eq!("Hello world".to_owned(), line);
+        assert_eq!(0, line_num);
+        index += 1;
+    }
+    assert!(index > 0);
+}
+
+#[test]
+#[should_panic(expected = "timeout")]
+fn test_timeout() {
+    use crate::*;
+    let session = super::new_test_sess().unwrap();
+    let (req, resp) = crate::new_req(crate::Args::new(), std::time::Duration::from_secs(2));
+    {
+        let mut promise = req.head::<BashRow>().unwrap();
+        shell(session,"sleep(5),echo 'Hello world'".to_owned(), 2, &mut promise).unwrap();
+        drop(req);
+    }
+
+    let resp = resp.wait().unwrap();
+    for row in resp {
+        let _ = row.unwrap();
+    }
 }

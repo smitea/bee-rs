@@ -1,5 +1,9 @@
 use crate::{value::Bytes, Columns, Promise, Result, Row, ToData, ToType};
-use std::{alloc::Layout, fs::File, io::Read, io::Seek, io::SeekFrom, mem::size_of, path::PathBuf};
+use ssh::{Session, SftpFile};
+use std::{
+    alloc::Layout, io::Read, io::Seek, io::SeekFrom, mem::size_of, path::PathBuf, sync::Arc,
+    sync::Mutex,
+};
 
 #[derive(Data)]
 pub struct FileBytes {
@@ -10,14 +14,21 @@ pub struct FileBytes {
 
 #[datasource]
 pub fn read_file(
+    session: Arc<Mutex<Session>>,
     path: String,
     start_index: i64,
     size: i64,
     promise: &mut Promise<FileBytes>,
 ) -> Result<()> {
+    let mut lock = session.lock()?;
+    let mut sftp = lock.sftp_new()?;
+    sftp.init()?;
+
     let file_path: PathBuf = path.parse()?;
-    let mut file = File::open(&file_path)?;
-    let file_size = file.metadata()?.len();
+
+    let mut file = sftp.open(&file_path, libc::O_RDONLY as usize, 0700)?;
+    let file_size = file.get_size();
+
     // 开始位置为负数则从文件末尾开始计算
     let start_seek = if start_index < 0 {
         let start_index = start_index.checked_abs().unwrap_or(0) as u64;
@@ -28,7 +39,6 @@ pub fn read_file(
 
     // 设置索引位置
     let start_index = file.seek(start_seek)?;
-
     let size = if (size as u64) > file_size || size < 0 {
         file_size
     } else {
@@ -56,7 +66,7 @@ pub fn read_file(
 
 fn read_commit(
     buffer: &mut [u8],
-    file: &mut File,
+    file: &mut SftpFile,
     path: String,
     file_size: i64,
     promise: &mut Promise<FileBytes>,
@@ -75,12 +85,12 @@ fn read_commit(
 #[test]
 fn test() {
     use crate::*;
-    let path = "/tmp/test_file.log".to_string();
-    std::fs::write(&path, "Hello world").unwrap();
+    let path = "/etc/hosts".to_string();
+    let session = super::new_test_sess().unwrap();
     let (req, resp) = crate::new_req(crate::Args::new(), std::time::Duration::from_secs(2));
     {
         let mut promise = req.head::<FileBytes>().unwrap();
-        read_file(path.clone(), 2, 5, &mut promise).unwrap();
+        read_file(session, path.clone(), 2, 5, &mut promise).unwrap();
         drop(req);
     }
 
@@ -98,8 +108,8 @@ fn test() {
         let content: Bytes = row.get(2).unwrap();
 
         assert_eq!(path, file_path);
-        assert_eq!(11, file_size);
-        assert_eq!(b"llo w".to_vec(), content);
+        assert!(file_size > 0);
+        assert_eq!(5, content.len());
         index += 1;
     }
     assert!(index > 0);

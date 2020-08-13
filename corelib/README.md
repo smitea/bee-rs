@@ -45,7 +45,7 @@ let statement = conn.new_statement(r#"
             get(output,1,'INT',0) as total,
             get(output,2,'INT',0) as used,
             get(output,3,'INT',0) as avail
-    FROM (SELECT split_space(line) as output FROM remote_shell('df -k',10) 
+    FROM (SELECT split_space(line) as output FROM shell('df -k',10) 
     WHERE line NOT LIKE '%Filesystem%' AND line NOT LIKE '%tmp%')
 "#, Duration::from_secs(4)).unwrap();
 
@@ -80,8 +80,8 @@ for rs in resp {
 在 Lua 脚本引擎中内置了基本的数据源调用接口。比如解析 shell 命令 `df -k` 的输出结果，则可以采用以下 Lua 脚本:
 
 ```lua
--- 使用 remote_shell 数据源并执行 df -k 命令，超时时间为 10 s
-local resp = remote_shell("df -k",10);
+-- 使用 shell 数据源并执行 df -k 命令，超时时间为 10 s
+local resp = shell("df -k",10);
 
 while(resp:has_next())
 do
@@ -114,7 +114,7 @@ SELECT  get(output,0,'TEXT','') as filesystem, -- 解析 Filesystem 列作为 St
         get(output,2,'INT',0) as used,         -- 解析 Used 列作为 Integer 类型
         get(output,3,'INT',0) as avail         -- 解析 Available 列作为 Integer 类型
 FROM (
-    SELECT split_space(line) as output FROM remote_shell('df -k',10) WHERE line NOT LIKE '%Filesystem%' AND line NOT LIKE '%tmp%')
+    SELECT split_space(line) as output FROM shell('df -k',10) WHERE line NOT LIKE '%Filesystem%' AND line NOT LIKE '%tmp%')
 ```
 
 ## 数据源
@@ -142,7 +142,7 @@ FROM (
 
 1. 文件路径: String
 2. 读取的开始位置: Integer
-3. 读取的结束位置: Integer
+3. 读取文件的大小: Integer
 
 输出结果行:
 
@@ -317,18 +317,18 @@ Remote 提供了一组操作远程主机的接口， 采用 [libssh](https://www
 
 在 Remote 数据源模式中提供了对远程主机的文件操作、以及执行命令行的数据源类型。数据源列表如下: 
 
-- [read_remote_file](#read_remote_file): 读取远程文件内容
-- [upload_remote_file](#upload_remote_file): 上传本地文件到远程主机中
-- [remote_mkdir](#remote_mkdir): 创建远程主机目录
-- [remote_shell](#remote_shell): 执行远程命令
+- [read_file](#read_file): 读取远程文件
+- [write_file](#write_file): 写入内容到远程文件中
+- [mkdir](#mkdir): 创建远程主机目录
+- [shell](#shell): 执行远程命令
 
-#### read_remote_file
+#### read_file
 
 输入参数: 
 
 1. 文件路径: String
 2. 读取的开始位置: Integer
-3. 读取的结束位置: Integer
+3. 读取文件的大小: Integer
 
 输出结果行:
 
@@ -339,31 +339,17 @@ Remote 提供了一组操作远程主机的接口， 采用 [libssh](https://www
 例如: 
 
 ```sql
-SELECT * FROM read_remote_file("/etc/hosts", 0, 4)
+SELECT * FROM read_file("/etc/hosts", 0, 4)
 ```
 
-#### remote_mkdir
-
-输入参数: 
-
-1. 目录路径: String
-
-输出结果行:
-
-- `success`: 执行成功返回 true 否则返回 false(Boolean)
-
-例如: 
-
-```sql
-SELECT * FROM remote_mkdir("/tmp")
-```
-
-#### upload_remote_file
+#### write_file
 
 输入参数: 
 
 1. 文件路径: String
-2. 写入的内容: String
+2. 文件所占目录: String
+3. 文件名: String
+4. 写入的内容: String
 
 输出结果行:
 
@@ -372,10 +358,27 @@ SELECT * FROM remote_mkdir("/tmp")
 例如: 
 
 ```sql
-SELECT * FROM upload_remote_file("/tmp/test", "Hello world")
+SELECT * FROM write_file("/tmp","test.log", "Hello world")
 ```
 
-#### remote_shell
+#### mkdir
+
+输入参数: 
+
+1. 根目录: String
+1. 目录名: String
+
+输出结果行:
+
+- `success`: 执行成功返回 true 否则返回 false(Boolean)
+
+例如: 
+
+```sql
+SELECT * FROM mkdir("/tmp", "bethune")
+```
+
+#### shell
 
 输入参数: 
 
@@ -390,7 +393,7 @@ SELECT * FROM upload_remote_file("/tmp/test", "Hello world")
 例如: 
 
 ```sql
-SELECT * FROM remote_shell("echo Hello", 10) WHERE line_num = 0
+SELECT * FROM shell("echo Hello", 10) WHERE line_num = 0
 ```
 
 ## 扩展函数

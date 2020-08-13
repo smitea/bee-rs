@@ -2,7 +2,7 @@ use crate::{Columns, Promise, Result, Row, ToData};
 use async_std::task::block_on;
 use std::time::Duration;
 
-#[derive(Data)]
+#[derive(Data, PartialEq)]
 pub struct CPUUsage {
     idle: f64,
     user: f64,
@@ -21,4 +21,28 @@ pub fn cpu_usage(promise: &mut Promise<CPUUsage>) -> Result<()> {
         iowait: 0.0,
     })?;
     Ok(())
+}
+
+#[test]
+fn test() {
+    use crate::*;
+    let (req, resp) = crate::new_req(crate::Args::new(), Duration::from_secs(2));
+    {
+        let mut promise = req.head::<CPUUsage>().unwrap();
+        cpu_usage(&mut promise).unwrap();
+        drop(req);
+    }
+
+    let resp = resp.wait().unwrap();
+    assert_eq!(
+        &columns![Number: "idle",Number: "user", Number: "system", Number: "iowait"],
+        resp.columns()
+    );
+
+    let mut index = 0;
+    for row in resp {
+        let _ = row.unwrap();
+        index += 1;
+    }
+    assert!(index > 0);
 }

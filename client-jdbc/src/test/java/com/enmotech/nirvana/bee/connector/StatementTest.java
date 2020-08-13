@@ -21,9 +21,7 @@ public class StatementTest extends ConnectorUrl {
 
     @Test
     public void testForIntSQL() throws SQLException {
-        Connection connection = null;
-        try {
-            connection = createConnection();
+        try (Connection connection = createConnection()) {
             Statement statement = connection.createStatement();
             statement.setQueryTimeout(10);
             ResultSet resultSet = statement.executeQuery("            SELECT  get(output,0,'TEXT','') as filesystem,\n" +
@@ -54,18 +52,12 @@ public class StatementTest extends ConnectorUrl {
 
                 System.out.println();
             }
-        } finally {
-            if (connection != null) {
-                connection.close();
-            }
         }
     }
 
     @Test
     public void testForDoubleSQL() throws SQLException {
-        Connection connection = null;
-        try {
-            connection = createConnection();
+        try (Connection connection = createConnection()) {
             Statement statement = connection.createStatement();
             statement.setQueryTimeout(10);
             ResultSet resultSet = statement.executeQuery("SELECT  get(output,12,'REAL',0.0) as user,\n" +
@@ -94,10 +86,6 @@ public class StatementTest extends ConnectorUrl {
                 System.out.println("idle:" + idle);
 
                 System.out.println();
-            }
-        } finally {
-            if (connection != null) {
-                connection.close();
             }
         }
     }

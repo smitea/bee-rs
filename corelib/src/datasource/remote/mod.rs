@@ -2,10 +2,10 @@ use crate::{code, configure::Configure, register_state, DataSource, Error, Insta
 use ssh::Session;
 use std::sync::{Arc, Mutex};
 
-mod bash;
+mod shell;
 mod mkdir;
-mod read;
-mod upload;
+mod read_file;
+mod write_file;
 
 const BASE_CODE: i32 = 83 + 83 + 72;
 
@@ -59,11 +59,11 @@ pub fn register_ds<T: Configure>(instance: &Instance, connection: &T) -> Result<
 
     let session = new_session(instance)?;
 
-    let ds = register_ds!(read);
+    let ds = register_ds!(read_file);
     register_state!(ds, session.clone());
     connection.register_source(ds)?;
 
-    let ds = register_ds!(upload);
+    let ds = register_ds!(write_file);
     register_state!(ds, session.clone());
     connection.register_source(ds)?;
 
@@ -71,8 +71,14 @@ pub fn register_ds<T: Configure>(instance: &Instance, connection: &T) -> Result<
     register_state!(ds, session.clone());
     connection.register_source(ds)?;
 
-    let ds = register_ds!(bash);
+    let ds = register_ds!(shell);
     register_state!(ds, session.clone());
     connection.register_source(ds)?;
     Ok(())
+}
+
+#[cfg(test)]
+fn new_test_sess()  -> Result<Arc<Mutex<Session>>>{
+    let instance: Instance = "sqlite:remote:password://oracle:admin@127.0.0.1:20002/bee?connect_timeout=5".parse()?;
+    new_session(&instance)
 }

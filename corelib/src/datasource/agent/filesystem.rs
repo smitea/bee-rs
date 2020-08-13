@@ -46,3 +46,27 @@ pub fn filesystem(promise: &mut Promise<Filesystem>) -> Result<(), Error> {
     });
     Ok(())
 }
+
+#[test]
+fn test() {
+    use crate::*;
+    let (req, resp) = crate::new_req(crate::Args::new(), std::time::Duration::from_secs(2));
+    {
+        let mut promise = req.head::<Filesystem>().unwrap();
+        filesystem(&mut promise).unwrap();
+        drop(req);
+    }
+
+    let resp = resp.wait().unwrap();
+    assert_eq!(
+        &columns![String: "name", String: "mount_on", Integer: "total_bytes",Integer: "used_bytes", Integer: "free_bytes"],
+        resp.columns()
+    );
+
+    let mut index = 0;
+    for row in resp {
+        let _ = row.unwrap();
+        index += 1;
+    }
+    assert!(index > 0);
+}

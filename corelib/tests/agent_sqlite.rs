@@ -117,7 +117,7 @@ mod test {
         init_log();
         assert_agent_sql(
             r#"
-                SELECT * FROM write_file("/tmp/test", "Hello world")
+                SELECT * FROM write_file("/tmp/test.log", "Hello world")
             "#,
             columns![Integer: "success"],
             1,

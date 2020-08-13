@@ -17,7 +17,7 @@ pub fn get(output: Vec<u8>, index: i32, data_type: String, default: String) -> R
 }
 
 fn parse_value(data_type: &str, value: &String) -> Result<Value> {
-    debug!("parser_value : {} - {}",data_type,value);
+    debug!("parser_value : {} - {}", data_type, value);
     let value = match data_type {
         "INT" => {
             let value = value.parse::<i64>()?;
@@ -31,4 +31,23 @@ fn parse_value(data_type: &str, value: &String) -> Result<Value> {
     };
 
     Ok(value)
+}
+
+#[test]
+fn test() {
+    use crate::*;
+    let record = vec!["10", "10.02", "He"];
+    let bytes = bincode::serialize(&record).unwrap();
+    assert_eq!(
+        Value::from(10),
+        get(bytes.clone(), 0, "INT".to_string(), "0".to_string()).unwrap()
+    );
+    assert_eq!(
+        Value::from(10.02),
+        get(bytes.clone(), 1, "REAL".to_string(), "0".to_string()).unwrap()
+    );
+    assert_eq!(
+        Value::from("He"),
+        get(bytes, 2, "TEXT".to_string(), "0".to_string()).unwrap()
+    );
 }

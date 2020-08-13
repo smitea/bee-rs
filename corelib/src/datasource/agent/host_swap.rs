@@ -22,3 +22,28 @@ pub fn swap_usage(promise: &mut Promise<SWAPUsage>) -> Result<()> {
     })?;
     Ok(())
 }
+
+
+#[test]
+fn test() {
+    use crate::*;
+    let (req, resp) = crate::new_req(crate::Args::new(), std::time::Duration::from_secs(2));
+    {
+        let mut promise = req.head::<SWAPUsage>().unwrap();
+        swap_usage(&mut promise).unwrap();
+        drop(req);
+    }
+
+    let resp = resp.wait().unwrap();
+    assert_eq!(
+        &columns![Integer: "used_bytes", Integer: "total_bytes", Integer: "free_bytes"],
+        resp.columns()
+    );
+
+    let mut index = 0;
+    for row in resp {
+        let _ = row.unwrap();
+        index += 1;
+    }
+    assert!(index > 0);
+}

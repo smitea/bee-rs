@@ -29,7 +29,7 @@ mod test{
                     get(output,1,'INT',0) as total,
                     get(output,2,'INT',0) as used,
                     get(output,3,'INT',0) as avail
-            FROM (SELECT split_space(line) as output FROM remote_shell('df -k',10) 
+            FROM (SELECT split_space(line) as output FROM shell('df -k',10) 
             WHERE line NOT LIKE '%Filesystem%' AND line NOT LIKE '%tmp%')
         "#, columns![String: "filesystem", Integer: "total", Integer: "used", Integer: "avail"], 3,  Duration::from_secs(4));
     }
@@ -47,7 +47,7 @@ mod test{
                     get(output,3,'INT',0) as shared,
                     get(output,4,'INT',0) as buffers,
                     get(output,5,'INT',0) as cached
-            FROM (SELECT split_space(line) as output FROM remote_shell('free -k',10) 
+            FROM (SELECT split_space(line) as output FROM shell('free -k',10) 
             WHERE line LIKE '%Mem:%')
         "#, columns![Integer: "used", Integer: "free", Integer: "shared", Integer: "buffers", Integer: "cached"], 1,  Duration::from_secs(4));
     }
@@ -67,7 +67,7 @@ mod test{
             SELECT  get(output,0,'TEXT',0.0) as device,
                     get(output,12,'REAL',0.0) as svctm,
                     get(output,13,'REAL',0.0) as util
-            FROM (SELECT split_space(line) as output FROM remote_shell('iostat -xk',10) WHERE line_num > 3)
+            FROM (SELECT split_space(line) as output FROM shell('iostat -xk',10) WHERE line_num > 3)
         "#, columns![String: "device", Number: "svctm", Number: "util"], 4,  Duration::from_secs(4));
     }
     
@@ -83,7 +83,7 @@ mod test{
                     get(output,13,'REAL',0.0) as system,
                     get(output,15,'REAL',0.0) as iowait,
                     get(output,14,'REAL',0.0) as idle 
-            FROM (SELECT split_space(line) as output FROM remote_shell('vmstat 1 2',10) WHERE line_num > 2)
+            FROM (SELECT split_space(line) as output FROM shell('vmstat 1 2',10) WHERE line_num > 2)
         "#, columns![Number: "user", Number: "system", Number: "iowait", Number: "idle"], 1,  Duration::from_secs(4));
     }
     
@@ -97,7 +97,7 @@ mod test{
                 SELECT  get(output,0,'TEXT',0) as file_name,
                         get(output,2,'INT',0) as total,
                         get(output,3,'INT',0) as used
-                FROM (SELECT split_space(line) as output FROM remote_shell('swapon -s',10) WHERE line_num > 0)
+                FROM (SELECT split_space(line) as output FROM shell('swapon -s',10) WHERE line_num > 0)
             )
         "#, columns![String: "file_name", Integer: "total", Integer: "used", Integer: "avali"], 1,  Duration::from_secs(4));
     }
@@ -107,7 +107,7 @@ mod test{
         init_log();
         // Linux
         assert_remote_sql(r#"
-            SELECT line as os FROM remote_shell('perl -e "print($^O)"',10)
+            SELECT line as os FROM shell('perl -e "print($^O)"',10)
         "#, columns![String: "os"], 1,  Duration::from_secs(4));
     }
 }

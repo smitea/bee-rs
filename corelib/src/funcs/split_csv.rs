@@ -47,13 +47,6 @@ fn parse_csv(line: &str, values: &mut Vec<String>) -> Result<()> {
 
 #[test]
 fn test() {
-    // 1024,'
-    // Hello world','
-    // Hello world, Good code'
-    // ,
-    // 20.11,
-    // false
-
     let arg = "'He',1024,'Hello world',10.11,'She',  'Hello world, Good code',20.11,false".to_owned();
     let rs = split_csv(arg).unwrap();
     let values: Vec<&str> = bincode::deserialize(&rs).unwrap();

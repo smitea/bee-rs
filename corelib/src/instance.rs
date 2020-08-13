@@ -17,7 +17,7 @@ pub struct Instance {
 }
 
 impl Instance {
-    /// 根据 HTTP 路由格式来创建 `Instance`
+    /// 根据 URI 格式来创建 `Instance`
     pub fn from(url: &str) -> Result<Self> {
         let protocols: Vec<&str> = url.splitn(3, ':').collect();
         let sess_mode: &str = protocols.get(0).ok_or(Error::index_param("session_mode"))?;
