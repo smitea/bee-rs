@@ -7,6 +7,7 @@ addons:
         packages:
             - libssl-dev
             - libssh-dev
+            - openssh-server
 cache: cargo
 rust:
   - stable
@@ -16,6 +17,8 @@ jobs:
   allow_failures:
     - rust: nightly
   fast_finish: true
+install: 
+  - .travis/install.sh
 before_script: |
   CODECOV_TOKEN="c4972349-4171-46d9-b84a-4a3a0b4d86e7"
   if [[ "$TRAVIS_RUST_VERSION" == stable ]]; then
