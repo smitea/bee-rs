@@ -8,16 +8,13 @@ mod test {
     use std::time::Duration;
 
     #[test]
-    fn memory_usage() {
+    fn test_commit() {
         init_log();
         assert_agent_lua(
             r#"
-                local resp=memory_usage();
-
-                while(resp:has_next())
-                do
-                    _request:commit(_next);
-                end
+            _request:commit({
+                name = "He"
+            });
             "#,
             0,
             Duration::from_secs(4),
