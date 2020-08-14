@@ -27,6 +27,7 @@ default     = [
     "agent",
     "sqlite",
     "lua",
+    "remote"
 ]
 
 remote      =   ["ssh","libc"]
