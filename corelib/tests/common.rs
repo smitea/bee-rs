@@ -7,6 +7,7 @@ pub fn init_log() {
         .try_init();
 }
 
+#[allow(dead_code)]
 #[cfg(feature = "remote")]
 #[cfg(feature = "sqlite")]
 pub fn new_ssh_connection_for_sql() -> bee_core::Result<Box<dyn Connection>> {
@@ -15,12 +16,14 @@ pub fn new_ssh_connection_for_sql() -> bee_core::Result<Box<dyn Connection>> {
     )
 }
 
+#[allow(dead_code)]
 #[cfg(feature = "agent")]
 #[cfg(feature = "sqlite")]
 pub fn new_agent_connection_for_sql() -> bee_core::Result<Box<dyn Connection>> {
     bee_core::new_connection("sqlite:agent:default")
 }
 
+#[allow(dead_code)]
 #[cfg(feature = "remote")]
 #[cfg(feature = "lua")]
 pub fn new_mock_connection_for_lua() -> bee_core::Result<Box<dyn Connection>> {
@@ -29,12 +32,14 @@ pub fn new_mock_connection_for_lua() -> bee_core::Result<Box<dyn Connection>> {
     )
 }
 
+#[allow(dead_code)]
 #[cfg(feature = "agent")]
 #[cfg(feature = "lua")]
 pub fn new_agent_connection_for_lua() -> bee_core::Result<Box<dyn Connection>> {
     bee_core::new_connection("lua:agent:default")
 }
 
+#[allow(dead_code)]
 #[cfg(feature = "remote")]
 #[cfg(feature = "sqlite")]
 pub fn assert_mock_sql(
@@ -47,6 +52,7 @@ pub fn assert_mock_sql(
     assert_columns(session, sql, columns, row_size, timeout);
 }
 
+#[allow(dead_code)]
 #[cfg(feature = "agent")]
 #[cfg(feature = "sqlite")]
 pub fn assert_agent_sql(
@@ -59,6 +65,7 @@ pub fn assert_agent_sql(
     assert_columns(session, sql, columns, row_size, timeout);
 }
 
+#[allow(dead_code)]
 #[cfg(feature = "remote")]
 #[cfg(feature = "lua")]
 pub fn assert_mock_lua(script: &str, row_size: usize, timeout: std::time::Duration) {
@@ -66,6 +73,7 @@ pub fn assert_mock_lua(script: &str, row_size: usize, timeout: std::time::Durati
     assert_row(session, script, row_size, timeout);
 }
 
+#[allow(dead_code)]
 #[cfg(feature = "agent")]
 #[cfg(feature = "lua")]
 pub fn assert_agent_lua(script: &str, row_size: usize, timeout: std::time::Duration) {
@@ -73,6 +81,7 @@ pub fn assert_agent_lua(script: &str, row_size: usize, timeout: std::time::Durat
     assert_row(session, script, row_size, timeout);
 }
 
+#[allow(dead_code)]
 pub fn assert_row(
     session: Box<dyn Connection>,
     sql: &str,
@@ -90,6 +99,7 @@ pub fn assert_row(
     assert!(index >= row_size);
 }
 
+#[allow(dead_code)]
 pub fn assert_columns(
     session: Box<dyn Connection>,
     sql: &str,
