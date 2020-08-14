@@ -7,9 +7,9 @@ addons:
     apt:
         packages:
             - libssl-dev
-            - libssh-dev
-services:
-  - docker
+            # - libssh-dev
+# services:
+#   - docker
 cache: cargo
 rust:
   - stable
@@ -19,9 +19,9 @@ jobs:
   allow_failures:
     - rust: nightly
   fast_finish: true
-before_install:
-  - docker run -d -p 10329:22 --name test_sshd rastasheep/ubuntu-sshd:14.04
-  - docker ps -a
+# before_install:
+#   - docker run -d -p 10329:22 --name test_sshd rastasheep/ubuntu-sshd:14.04
+#   - docker ps -a
 before_script: |
   if [[ "$TRAVIS_RUST_VERSION" == stable ]]; then
     cargo install cargo-tarpaulin
