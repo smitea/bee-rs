@@ -17,7 +17,7 @@ pub struct Filesystem {
 #[datasource]
 pub fn filesystem(promise: &mut Promise<Filesystem>) -> Result<(), Error> {
     block_on(async {
-        let mut partitions = partitions_physical();
+        let mut partitions = Box::pin(partitions_physical());
         while let Some(Ok(part)) = partitions.next().await {
             if let Ok(usage) = heim::disk::usage(part.mount_point().to_path_buf()).await {
                 let total = usage.total();

@@ -1,5 +1,5 @@
-use crate::{datasource::Status, Error, Promise, Result, ToData, ToType};
-use std::{fs::File, io::ErrorKind, io::Write, path::PathBuf};
+use crate::{datasource::Status, Promise, Result, ToData, ToType};
+use std::{path::PathBuf};
 
 #[datasource]
 pub fn write_file(
@@ -14,22 +14,7 @@ pub fn write_file(
         path
     };
 
-    let mut file = if path.exists() {
-        match File::with_options().append(false).write(true).open(&path) {
-            Ok(file) => file,
-            Err(err) => {
-                if err.kind() == ErrorKind::NotFound {
-                    File::create(&path)?
-                } else {
-                    return Err(Error::from(err));
-                }
-            }
-        }
-    } else {
-        File::create(&path)?
-    };
-
-    let _ = file.write(content.as_bytes())?;
+    std::fs::write(&path, content)?;
     promise.commit(Status { success: true })?;
     Ok(())
 }

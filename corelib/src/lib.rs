@@ -1,23 +1,3 @@
-#![feature(seek_convenience)]
-#![feature(with_options)]
-#![deny(
-    unused,
-    unused_imports,
-    unused_features,
-    bare_trait_objects,
-    future_incompatible,
-    nonstandard_style,
-    dead_code,
-    deprecated,
-)]
-#![warn(
-    unused_extern_crates,
-    unused_import_braces,
-    unused_results
-)]
-#![allow(clippy::missing_safety_doc)]
-#![cfg_attr(docsrs, feature(doc_cfg))]
-
 mod connect;
 mod error;
 mod value;
