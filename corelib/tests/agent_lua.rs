@@ -19,7 +19,7 @@ mod test {
                     _request:commit(_next);
                 end
             "#,
-            3,
+            0,
             Duration::from_secs(4),
         );
     }

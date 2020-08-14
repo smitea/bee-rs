@@ -16,7 +16,7 @@ mod test {
             SELECT * FROM filesystem() WHERE name NOT LIKE '%tmp%'
         "#,
             columns![String: "name", String: "mount_on", Integer: "total_bytes", Integer: "used_bytes", Integer: "free_bytes"],
-            3,
+            0,
             Duration::from_secs(4),
         );
     }

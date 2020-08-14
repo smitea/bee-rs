@@ -4,6 +4,7 @@ use crate::{Columns, Configure, Instance, Register, Request, Result, Row};
 mod agent;
 #[cfg(feature = "remote")]
 mod remote;
+mod debug;
 
 #[derive(Data)]
 pub struct Status {
@@ -36,6 +37,9 @@ pub fn register_ds<T: Configure>(instance: &Instance, connection: &T) -> Result<
         #[cfg(feature = "remote")]
         "remote" => {
             remote::register_ds(instance, connection)?;
+        }
+        "debug" => {
+            debug::register_ds(instance, connection)?;
         }
         _ => unimplemented!(),
     }
