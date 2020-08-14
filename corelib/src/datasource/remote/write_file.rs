@@ -34,7 +34,7 @@ fn test() {
         let mut promise = req.head::<Status>().unwrap();
         write_file(
             session,
-            "/u01/app/oracle".to_string(),
+            "/home".to_string(),
             "test.log".to_owned(),
             "hello world".to_string(),
             &mut promise,

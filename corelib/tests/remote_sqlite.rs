@@ -51,26 +51,7 @@ mod test{
             WHERE line LIKE '%Mem:%')
         "#, columns![Integer: "used", Integer: "free", Integer: "shared", Integer: "buffers", Integer: "cached"], 1,  Duration::from_secs(4));
     }
-    
-    #[test]
-    fn test_iostat_xk() {
-        init_log();
-        // Linux 4.19.76-linuxkit (cb9607b8c76e) 	07/17/20 	_x86_64_	(1 CPU)
-        // avg-cpu:  %user   %nice %system %iowait  %steal   %idle
-        //            0.68    0.00    0.72    0.05    0.00   98.55
-        // Device:         rrqm/s   wrqm/s     r/s     w/s    rkB/s    wkB/s avgrq-sz avgqu-sz   await r_await w_await  svctm  %util
-        // scd0              0.00     0.00    0.23    0.00    16.64     0.00   147.46     0.00    0.60    0.60    0.00   0.46   0.01
-        // sda               0.00     0.63    1.00    1.74    24.87    16.51    30.23     0.00    0.48    0.39    0.53   0.33   0.09
-        // scd1              0.00     0.00    0.00    0.00     0.01     0.00    36.57     0.00    0.14    0.14    0.00   0.14   0.00
-        // scd2              0.00     0.00    0.11    0.00     9.03     0.00   160.65     0.00    0.70    0.70    0.00   0.66   0.01
-        assert_remote_sql(r#"
-            SELECT  get(output,0,'TEXT',0.0) as device,
-                    get(output,12,'REAL',0.0) as svctm,
-                    get(output,13,'REAL',0.0) as util
-            FROM (SELECT split_space(line) as output FROM shell('iostat -xk',10) WHERE line_num > 3)
-        "#, columns![String: "device", Number: "svctm", Number: "util"], 4,  Duration::from_secs(4));
-    }
-    
+ 
     #[test]
     fn test_vmstat_12() {
         init_log();

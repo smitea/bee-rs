@@ -27,7 +27,7 @@ fn test() {
         let mut promise = req.head::<Status>().unwrap();
         mkdir(
             session,
-            "/u01/app/oracle".to_owned(),
+            "/home".to_owned(),
             "bethune".to_owned(),
             &mut promise,
         )
