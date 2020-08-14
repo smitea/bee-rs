@@ -18,15 +18,14 @@ jobs:
     - rust: nightly
   fast_finish: true
 before_script: |
-  export CODECOV_TOKEN="c4972349-4171-46d9-b84a-4a3a0b4d86e7"
-  export CARGO_INCREMENTAL=0
-  export RUSTFLAGS="-Ccodegen-units=1 -Cinline-threshold=0 -Coverflow-checks=off"
   if [[ "$TRAVIS_RUST_VERSION" == stable ]]; then
     cargo install cargo-tarpaulin
   fi
 script:
-- cargo clean
-- cargo test
+  - export CODECOV_TOKEN="c4972349-4171-46d9-b84a-4a3a0b4d86e7"
+  - export RUSTFLAGS="-Ccodegen-units=1 -Cinline-threshold=0 -Coverflow-checks=off"
+  - cargo clean
+  - cargo test
 after_success: |
   if [[ "$TRAVIS_RUST_VERSION" == stable ]]; then
     cargo tarpaulin --ciserver travis-ci --coveralls $TRAVIS_JOB_ID
