@@ -9,33 +9,6 @@ mod test{
     use std::time::Duration;
     
     #[test]
-    fn test_df_k() {
-        init_log();
-    
-        assert_mock_sql(r#"
-            SELECT  get(output,0,'TEXT','') as filesystem,
-                    get(output,1,'INT',0) as total,
-                    get(output,2,'INT',0) as used,
-                    get(output,3,'INT',0) as avail
-            FROM (SELECT split_space(line) as output FROM shell('
-                Filesystem     1K-blocks    Used Available Use% Mounted on
-                overlay         15312232 9295008   5219684  65% /
-                tmpfs              65536       8     65528   1% /dev
-                tmpfs            1018900       0   1018900   0% /sys/fs/cgroup
-                shm                65536       0     65536   0% /dev/shm
-                /dev/sda1       15312232 9295008   5219684  65% /etc/hosts
-                tmpfs            1018900       0   1018900   0% /proc/acpi
-                tmpfs              65536       8     65528   1% /proc/kcore
-                tmpfs              65536       8     65528   1% /proc/keys
-                tmpfs              65536       8     65528   1% /proc/timer_list
-                tmpfs              65536       8     65528   1% /proc/sched_debug
-                tmpfs            1018900       0   1018900   0% /sys/firmware
-            ',10) 
-            WHERE line NOT LIKE '%Filesystem%' AND line NOT LIKE '%tmp%')
-        "#, columns![String: "filesystem", Integer: "total", Integer: "used", Integer: "avail"], 3,  Duration::from_secs(4));
-    }
-    
-    #[test]
     fn test_free_k() {
         init_log();
         assert_mock_sql(r#"
