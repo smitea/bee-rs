@@ -25,7 +25,6 @@ rusqlite            = {optional = true, git = "https://github.com/rusqlite/rusql
 [features]
 default     = [
     "agent",
-    "remote",
     "sqlite",
     "lua",
 ]

@@ -8,15 +8,6 @@ pub fn init_log() {
 }
 
 #[allow(dead_code)]
-#[cfg(feature = "remote")]
-#[cfg(feature = "sqlite")]
-pub fn new_ssh_connection_for_sql() -> bee_core::Result<Box<dyn Connection>> {
-    bee_core::new_connection(
-        "sqlite:debug:default",
-    )
-}
-
-#[allow(dead_code)]
 #[cfg(feature = "agent")]
 #[cfg(feature = "sqlite")]
 pub fn new_agent_connection_for_sql() -> bee_core::Result<Box<dyn Connection>> {
@@ -24,32 +15,10 @@ pub fn new_agent_connection_for_sql() -> bee_core::Result<Box<dyn Connection>> {
 }
 
 #[allow(dead_code)]
-#[cfg(feature = "remote")]
-#[cfg(feature = "lua")]
-pub fn new_mock_connection_for_lua() -> bee_core::Result<Box<dyn Connection>> {
-    bee_core::new_connection(
-        "lua:debug:default",
-    )
-}
-
-#[allow(dead_code)]
 #[cfg(feature = "agent")]
 #[cfg(feature = "lua")]
 pub fn new_agent_connection_for_lua() -> bee_core::Result<Box<dyn Connection>> {
     bee_core::new_connection("lua:agent:default")
-}
-
-#[allow(dead_code)]
-#[cfg(feature = "remote")]
-#[cfg(feature = "sqlite")]
-pub fn assert_mock_sql(
-    sql: &str,
-    columns: bee_core::Columns,
-    row_size: usize,
-    timeout: std::time::Duration,
-) {
-    let session: Box<dyn Connection> = new_ssh_connection_for_sql().unwrap();
-    assert_columns(session, sql, columns, row_size, timeout);
 }
 
 #[allow(dead_code)]
@@ -63,14 +32,6 @@ pub fn assert_agent_sql(
 ) {
     let session: Box<dyn Connection> = new_agent_connection_for_sql().unwrap();
     assert_columns(session, sql, columns, row_size, timeout);
-}
-
-#[allow(dead_code)]
-#[cfg(feature = "remote")]
-#[cfg(feature = "lua")]
-pub fn assert_mock_lua(script: &str, row_size: usize, timeout: std::time::Duration) {
-    let session: Box<dyn Connection> = new_mock_connection_for_lua().unwrap();
-    assert_row(session, script, row_size, timeout);
 }
 
 #[allow(dead_code)]
