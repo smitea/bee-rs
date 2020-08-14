@@ -9,19 +9,6 @@ mod test {
     use std::time::Duration;
 
     #[test]
-    fn filesystem() {
-        init_log();
-        assert_agent_sql(
-            r#"
-            SELECT * FROM filesystem() WHERE name NOT LIKE '%tmp%'
-        "#,
-            columns![String: "name", String: "mount_on", Integer: "total_bytes", Integer: "used_bytes", Integer: "free_bytes"],
-            0,
-            Duration::from_secs(4),
-        );
-    }
-
-    #[test]
     fn host_basic() {
         init_log();
         assert_agent_sql(

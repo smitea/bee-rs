@@ -8,11 +8,11 @@ mod test {
     use std::time::Duration;
 
     #[test]
-    fn filesystem() {
+    fn memory_usage() {
         init_log();
         assert_agent_lua(
             r#"
-                local resp=filesystem();
+                local resp=memory_usage();
 
                 while(resp:has_next())
                 do
