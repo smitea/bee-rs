@@ -1,6 +1,5 @@
 use bee_core::Connection;
 
-#[cfg(test)]
 pub fn init_log() {
     let _ = env_logger::builder()
         .is_test(true)
@@ -8,7 +7,6 @@ pub fn init_log() {
         .try_init();
 }
 
-#[cfg(test)]
 #[cfg(feature = "remote")]
 #[cfg(feature = "sqlite")]
 pub fn new_ssh_connection_for_sql() -> bee_core::Result<Box<dyn Connection>> {
@@ -17,14 +15,12 @@ pub fn new_ssh_connection_for_sql() -> bee_core::Result<Box<dyn Connection>> {
     )
 }
 
-#[cfg(test)]
 #[cfg(feature = "agent")]
 #[cfg(feature = "sqlite")]
 pub fn new_agent_connection_for_sql() -> bee_core::Result<Box<dyn Connection>> {
     bee_core::new_connection("sqlite:agent:default")
 }
 
-#[cfg(test)]
 #[cfg(feature = "remote")]
 #[cfg(feature = "lua")]
 pub fn new_ssh_connection_for_lua() -> bee_core::Result<Box<dyn Connection>> {
@@ -33,14 +29,12 @@ pub fn new_ssh_connection_for_lua() -> bee_core::Result<Box<dyn Connection>> {
     )
 }
 
-#[cfg(test)]
 #[cfg(feature = "agent")]
 #[cfg(feature = "lua")]
 pub fn new_agent_connection_for_lua() -> bee_core::Result<Box<dyn Connection>> {
     bee_core::new_connection("lua:agent:default")
 }
 
-#[cfg(test)]
 #[cfg(feature = "remote")]
 #[cfg(feature = "sqlite")]
 pub fn assert_remote_sql(
@@ -53,7 +47,6 @@ pub fn assert_remote_sql(
     assert_columns(session, sql, columns, row_size, timeout);
 }
 
-#[cfg(test)]
 #[cfg(feature = "agent")]
 #[cfg(feature = "sqlite")]
 pub fn assert_agent_sql(
@@ -66,7 +59,6 @@ pub fn assert_agent_sql(
     assert_columns(session, sql, columns, row_size, timeout);
 }
 
-#[cfg(test)]
 #[cfg(feature = "remote")]
 #[cfg(feature = "lua")]
 pub fn assert_remote_lua(script: &str, row_size: usize, timeout: std::time::Duration) {
@@ -74,7 +66,6 @@ pub fn assert_remote_lua(script: &str, row_size: usize, timeout: std::time::Dura
     assert_row(session, script, row_size, timeout);
 }
 
-#[cfg(test)]
 #[cfg(feature = "agent")]
 #[cfg(feature = "lua")]
 pub fn assert_agent_lua(script: &str, row_size: usize, timeout: std::time::Duration) {
@@ -82,8 +73,7 @@ pub fn assert_agent_lua(script: &str, row_size: usize, timeout: std::time::Durat
     assert_row(session, script, row_size, timeout);
 }
 
-#[cfg(test)]
-fn assert_row(
+pub fn assert_row(
     session: Box<dyn Connection>,
     sql: &str,
     row_size: usize,
@@ -96,12 +86,11 @@ fn assert_row(
         let _ = rs.unwrap();
         index += 1;
     }
-    println!("index: {}, row: {}",index,row_size);
+    println!("index: {}, row: {}", index, row_size);
     assert!(index >= row_size);
 }
 
-#[cfg(test)]
-fn assert_columns(
+pub fn assert_columns(
     session: Box<dyn Connection>,
     sql: &str,
     columns: bee_core::Columns,
@@ -115,7 +104,7 @@ fn assert_columns(
     let mut index = 0;
     for rs in resp {
         let row = rs.unwrap();
-        println!("row - {:?}",row);
+        println!("row - {:?}", row);
         index += 1;
     }
     assert!(index >= row_size);
