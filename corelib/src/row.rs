@@ -76,3 +76,19 @@ fn test() {
     let val1 = row.get::<Vec<u8>>(4).unwrap();
     assert_eq!(vec![0x01, 0x02], val1);
 }
+
+#[test]
+fn test_faild(){
+    let row: Row = crate::row!(10, 20.0, "Name", false, vec![0x01, 0x02]);
+    assert!(row.get_value(5).is_err());
+
+    assert!(row.get::<f64>(0).is_err());
+    assert!(row.get::<u32>(5).is_err());
+    assert!(row.get_value(5).is_err());
+
+    let mut row: Row = Row::default();
+    row.push("He");
+    assert!(row.get_value(0).is_ok());
+
+    assert_eq!(1,row.iter().len());
+}

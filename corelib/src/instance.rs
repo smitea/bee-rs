@@ -164,14 +164,14 @@ fn test() {
     )
     .unwrap();
 
-    assert_eq!("sqlite".to_owned(), instance.sess_mode);
-    assert_eq!("remote".to_owned(), instance.ds_mode);
-    assert_eq!("password".to_owned(), instance.connect_mode);
-    assert_eq!(Some("oracle".to_owned()), instance.username);
-    assert_eq!(Some("admin".to_owned()), instance.password);
-    assert_eq!(Some("127.0.0.1".to_owned()), instance.host);
-    assert_eq!(Some(22), instance.port);
-    assert_eq!(Some("bee".to_owned()), instance.resource);
+    assert_eq!("sqlite".to_owned(), instance.get_sess_mode());
+    assert_eq!("remote".to_owned(), instance.get_ds_mode());
+    assert_eq!("password".to_owned(), instance.get_connect_mod());
+    assert_eq!(Some("oracle".to_owned()), instance.get_username());
+    assert_eq!(Some("admin"), instance.get_password());
+    assert_eq!(Some("127.0.0.1"), instance.get_host());
+    assert_eq!(Some(22), instance.get_port());
+    assert_eq!(Some("bee".to_owned()), instance.get_res());
 
     let timeout: i32 = instance.get_param("connect_timeout").unwrap();
     assert_eq!(1000_i32, timeout);

@@ -70,7 +70,7 @@ impl Request {
             self.tx.send(State::from(columns))?;
             self.has_columns = true;
             self.tx.send(State::from(new_row))?;
-        }else{
+        } else {
             let mut new_row = Row::new();
             for (_, value) in row {
                 new_row.push(value);
@@ -152,4 +152,24 @@ fn valid_row(columns: &Columns, row: &Row) -> Result<()> {
     }
 
     Ok(())
+}
+
+#[test]
+#[should_panic(expected = "invalid row : the cols len is")]
+fn test_valid_row_len() {
+    valid_row(
+        &crate::columns![String: "name", Integer: "age"],
+        &crate::row!["He"],
+    )
+    .unwrap();
+}
+
+#[test]
+#[should_panic(expected = "invalid row from")]
+fn test_valid_row_type() {
+    valid_row(
+        &crate::columns![String: "name", Integer: "age"],
+        &crate::row!["He", 10.02],
+    )
+    .unwrap();
 }

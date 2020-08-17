@@ -218,3 +218,41 @@ fn from_value() {
     let val: Value = vec![0x09_u8, 0x12].into();
     assert_eq!(Value::Bytes(vec![0x09_u8, 0x12]), val);
 }
+
+#[test]
+fn try_from_value(){
+    assert_eq!(Value::Number(10.0), Value::try_from(10.0).unwrap());
+    assert_eq!(Value::Boolean(false), Value::try_from(false).unwrap());
+    assert_eq!(Value::Integer(10), Value::try_from(10).unwrap());
+    assert_eq!(Value::String("He".to_owned()), Value::try_from("He".to_owned()).unwrap());
+    assert_eq!(Value::Bytes(b"\x00\x01".to_vec()), Value::try_from(b"\x00\x01".to_vec()).unwrap());
+    assert_eq!(Value::Nil, Value::try_from(()).unwrap());
+}
+
+#[test]
+#[should_panic(expected = "failed to parse")]
+fn try_from_value_failed(){
+    let _: u8 = u8::try_from(Value::Number(10.02)).unwrap();
+}
+
+#[test]
+fn get_type(){
+    assert_eq!(DataType::Number, Value::from(10.0).get_type());
+    assert_eq!(DataType::Boolean, Value::from(false).get_type());
+    assert_eq!(DataType::Integer, Value::from(10).get_type());
+    assert_eq!(DataType::String, Value::from("He".to_owned()).get_type());
+    assert_eq!(DataType::Bytes, Value::from(b"\x00\x01".to_vec()).get_type());
+    assert_eq!(DataType::Nil, Value::Nil.get_type());
+    assert!(Value::Nil.is_nil());
+    assert!(!Value::Number(10.0).is_nil());
+}
+
+#[test]
+fn to_string(){
+    assert_eq!("10.02".to_string(), format!("{}",Value::from(10.02_f64)));
+    assert_eq!("10".to_string(), format!("{}",Value::from(10)));
+    assert_eq!("false".to_string(), format!("{}",Value::from(false)));
+    assert_eq!("He".to_string(), format!("{}",Value::from("He".to_owned())));
+    assert_eq!("[0, 1]".to_string(), format!("{}",Value::from(b"\x00\x01".to_vec())));
+    assert_eq!("Nil",format!("{}",Value::Nil));
+}

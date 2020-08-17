@@ -171,3 +171,22 @@ fn get_columns(sql_columns: Vec<Column>) -> Columns {
 
     columns
 }
+
+#[test]
+fn test() {
+    let lua_script = r#"
+        SELECT * FROM filesystem() WHERE name NOT LIKE '%tmp%'
+    "#;
+    let conn = crate::new_connection("sqlite:agent:default").unwrap();
+    let statement = conn.new_statement(lua_script, Duration::from_secs(2)).unwrap();
+    let resp = statement.wait().unwrap();
+    let cols = resp.columns();
+    assert_eq!(5,cols.len());
+
+    let mut index = 0;
+    for row in resp{
+        let _ = row.unwrap();
+        index += 1;
+    }
+    assert!(index > 0);
+}

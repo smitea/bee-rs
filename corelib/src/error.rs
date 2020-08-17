@@ -50,7 +50,7 @@ const CHANNEL_SEND: i32 = code!(CHANNEL, 2);
 const MUTEX_LOCKED: i32 = code!(LOCKED, 1);
 
 /// 错误信息(错误码和错误信息组成)
-#[derive(Debug, Clone,Eq, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct Error {
     code: i32,
     msg: String,
@@ -99,7 +99,7 @@ impl Error {
 
     pub fn invalid<T: ToString>(code: i32, msg: T) -> Self {
         Self {
-            code: (INTERNAL | (code << 8)),
+            code: (INVALID | (code << 8)),
             msg: msg.to_string(),
         }
     }
@@ -161,7 +161,6 @@ impl From<std::io::Error> for Error {
             std::io::ErrorKind::TimedOut => Error::new(IO_TIMEDOUT, err),
             std::io::ErrorKind::WriteZero => Error::new(IO_WRITEZERO, err),
             std::io::ErrorKind::Interrupted => Error::new(IO_INTERRUPTED, err),
-            std::io::ErrorKind::Other => Error::new(IO_OTHER, err),
             std::io::ErrorKind::UnexpectedEof => Error::new(IO_UNEXPECTEDEOF, err),
             _ => Error::new(IO_OTHER, err),
         }
@@ -212,4 +211,78 @@ impl<T> From<std::sync::PoisonError<std::sync::RwLockReadGuard<'_, T>>> for Erro
             msg: err.to_string(),
         }
     }
+}
+
+#[test]
+fn test() {
+    let err = Error::other(1, "other error");
+    assert_eq!(265, err.get_code());
+
+    let err = Error::internal(1, "internal error");
+    assert_eq!(258, err.get_code());
+
+    let err = Error::invalid(1, "invalid error");
+    assert_eq!(259, err.get_code());
+    assert_eq!(OK, Error::ok_code());
+
+    let err = std::sync::mpsc::RecvTimeoutError::Disconnected;
+    assert_eq!(262, Error::from(err).get_code());
+
+    let err = std::sync::mpsc::RecvError;
+    assert_eq!(262, Error::from(err).get_code());
+
+    if let Err(err) = String::from_utf8(vec![0, 159, 146, 150]) {
+        assert_eq!(515, Error::from(err).get_code());
+    }
+
+    let err = std::sync::mpsc::SendError(10);
+    assert_eq!(518, Error::from(err).get_code());
+
+    let err = std::sync::mpsc::SendError(10);
+    assert_eq!(518, Error::from(err).get_code());
+
+    let err = std::io::Error::new(std::io::ErrorKind::NotFound, "failed");
+    assert_eq!(263, Error::from(err).get_code());
+    let err = std::io::Error::new(std::io::ErrorKind::PermissionDenied, "failed");
+    assert_eq!(519, Error::from(err).get_code());
+    let err = std::io::Error::new(std::io::ErrorKind::ConnectionRefused, "failed");
+    assert_eq!(775, Error::from(err).get_code());
+    let err = std::io::Error::new(std::io::ErrorKind::ConnectionReset, "failed");
+    assert_eq!(1031, Error::from(err).get_code());
+    let err = std::io::Error::new(std::io::ErrorKind::ConnectionAborted, "failed");
+    assert_eq!(1287, Error::from(err).get_code());
+    let err = std::io::Error::new(std::io::ErrorKind::NotConnected, "failed");
+    assert_eq!(1543, Error::from(err).get_code());
+    let err = std::io::Error::new(std::io::ErrorKind::AddrInUse, "failed");
+    assert_eq!(1799, Error::from(err).get_code());
+    let err = std::io::Error::new(std::io::ErrorKind::AddrNotAvailable, "failed");
+    assert_eq!(2055, Error::from(err).get_code());
+    let err = std::io::Error::new(std::io::ErrorKind::BrokenPipe, "failed");
+    assert_eq!(2311, Error::from(err).get_code());
+    let err = std::io::Error::new(std::io::ErrorKind::AlreadyExists, "failed");
+    assert_eq!(2567, Error::from(err).get_code());
+    let err = std::io::Error::new(std::io::ErrorKind::WouldBlock, "failed");
+    assert_eq!(4359, Error::from(err).get_code());
+    let err = std::io::Error::new(std::io::ErrorKind::InvalidInput, "failed");
+    assert_eq!(2823, Error::from(err).get_code());
+    let err = std::io::Error::new(std::io::ErrorKind::InvalidData, "failed");
+    assert_eq!(3079, Error::from(err).get_code());
+    let err = std::io::Error::new(std::io::ErrorKind::TimedOut, "failed");
+    assert_eq!(3335, Error::from(err).get_code());
+    let err = std::io::Error::new(std::io::ErrorKind::WriteZero, "failed");
+    assert_eq!(3591, Error::from(err).get_code());
+    let err = std::io::Error::new(std::io::ErrorKind::Interrupted, "failed");
+    assert_eq!(4615, Error::from(err).get_code());
+    let err = std::io::Error::new(std::io::ErrorKind::UnexpectedEof, "failed");
+    assert_eq!(4103, Error::from(err).get_code());
+    let err = std::io::Error::new(std::io::ErrorKind::Other, "failed");
+    assert_eq!(3847, Error::from(err).get_code());
+
+    let err = std::io::Error::new(std::io::ErrorKind::Other, "failed");
+    assert_eq!("3847,failed".to_owned(),Error::from(err).to_string());
+
+    let err: Error = "3847,failed".parse().unwrap();
+    assert_eq!(3847,err.get_code());
+    let err: Error = "failed".parse().unwrap();
+    assert_eq!(2306,err.get_code());
 }

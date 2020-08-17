@@ -57,7 +57,9 @@ impl Statement {
             return Err(err);
         }
 
-        return Err(Error::invalid_type(format!("invalid to wait a columns for response")));
+        return Err(Error::invalid_type(format!(
+            "invalid to wait a columns for response"
+        )));
     }
 }
 
@@ -149,4 +151,30 @@ fn test() {
 
     assert_eq!(Some(0), columns.get_index("name"));
     assert!(resp.into_iter().all(|x| x.is_ok()));
+}
+
+#[test]
+fn test_without_timeout() {
+    let (mut req, statement) = new_req_none(crate::args![10, 10.02]);
+    let _ = std::thread::spawn(move || {
+        let args = req.get_args();
+        let arg0: u32 = args.get(0).unwrap();
+        assert_eq!(10, arg0);
+
+        let commit = req.new_commit(crate::columns![String: "name"]).unwrap();
+        let args = commit.get_args();
+        let arg0: f64 = args.get(1).unwrap();
+        assert_eq!(10.02, arg0);
+        std::thread::sleep(Duration::from_millis(100));
+        if let Err(err) = req.commit(vec![("age".to_owned(), crate::Value::from(10))]){
+            req.error(err).unwrap();
+        }
+    });
+
+    let resp  = statement.wait().unwrap();
+    assert_eq!(&crate::columns![String: "name"],resp.columns());
+
+    for row in resp{
+        let _ = row.unwrap();
+    }
 }

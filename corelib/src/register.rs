@@ -26,3 +26,11 @@ impl Register {
         self.container.get::<T>().clone()
     }
 }
+
+#[test]
+fn test() {
+    let register = Register::new();
+    register.set_state(10);
+
+    assert_eq!(10, register.get_state());
+}

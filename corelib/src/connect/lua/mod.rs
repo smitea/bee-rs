@@ -108,3 +108,27 @@ fn register_context(
     global.set("_request", request)?;
     Ok(())
 }
+
+
+#[test]
+fn test() {
+    let lua_script = r#"
+        local resp=filesystem();
+        while(resp:has_next())
+        do
+            _request:commit(_next);
+        end
+    "#;
+    let conn = crate::new_connection("lua:agent:default").unwrap();
+    let statement = conn.new_statement(lua_script, std::time::Duration::from_secs(2)).unwrap();
+    let resp = statement.wait().unwrap();
+    let cols = resp.columns();
+    assert_eq!(5,cols.len());
+
+    let mut index = 0;
+    for row in resp{
+        let _ = row.unwrap();
+        index += 1;
+    }
+    assert!(index > 0);
+}

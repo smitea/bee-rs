@@ -145,4 +145,14 @@ fn test() {
     assert_eq!("Nil".to_owned(), t.to_string());
     let t: DataType = "Nil".parse().unwrap();
     assert_eq!("Nil".to_owned(), t.to_string());
+
+    let t: crate::Result<DataType> = "test".parse();
+    assert!(t.is_err());
+
+    assert_eq!(DataType::Boolean, DataType::from(Value::from(false)));
+    assert_eq!(DataType::Number, DataType::from(Value::from(10.02)));
+    assert_eq!(DataType::Integer, DataType::from(Value::from(10)));
+    assert_eq!(DataType::String, DataType::from(Value::from("name".to_owned())));
+    assert_eq!(DataType::Bytes, DataType::from(Value::from(b"\x01\x02".to_vec())));
+    assert_eq!(DataType::Nil, DataType::from(Value::Nil));
 }

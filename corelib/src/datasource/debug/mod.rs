@@ -8,3 +8,8 @@ pub fn register_ds<T: Configure>(_: &Instance, connection: &T) -> Result<()> {
     connection.register_source(register_ds!(shell))?;
     Ok(())
 }
+
+#[test]
+fn test(){
+    let _ = crate::new_connection("sqlite:debug:default").unwrap();
+}

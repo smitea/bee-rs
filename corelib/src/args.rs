@@ -1,14 +1,13 @@
-use crate::{Error, Value,Result};
+use crate::{Error, Result, Value};
 use std::convert::TryFrom;
 
 /// 输入参数列表
-#[derive(Debug,Clone)]
+#[derive(Debug, Clone)]
 pub struct Args {
     values: Vec<Value>,
 }
 
 impl Args {
-
     /// 创建一个空的参数列表
     #[inline(always)]
     pub fn new() -> Self {
@@ -25,7 +24,7 @@ impl Args {
 
     /// 添加一个参数值
     #[inline(always)]
-    pub fn push<T: Into<Value>>(&mut self, value: T){
+    pub fn push<T: Into<Value>>(&mut self, value: T) {
         self.values.push(value.into());
     }
 }
@@ -54,4 +53,10 @@ fn test() {
 
     let val1 = args.get::<Vec<u8>>(4).unwrap();
     assert_eq!(vec![0x01, 0x02], val1);
+
+    let mut args: Args = Args::new();
+    args.push(10);
+    assert_eq!(10, args.get(0).unwrap());
+    assert!(args.get::<f64>(0).is_err());
+    assert!(args.get::<u32>(1).is_err());
 }

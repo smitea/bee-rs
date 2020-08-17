@@ -1,4 +1,4 @@
-use crate::{Columns, Error, Instance, Register, Request, Result, configure::Configure};
+use crate::{Error, Instance, Result, configure::Configure};
 use heim::units::{time, Time};
 use std::process::{Command, Output};
 use std::time::Duration;
@@ -13,14 +13,6 @@ mod os_info;
 mod read_file;
 mod shell;
 mod write_file;
-
-pub trait DataSource: Send + Sync {
-    fn name(&self) -> &str;
-    fn args(&self) -> Columns;
-    fn columns(&self) -> Columns;
-    fn get_register(&self) -> &Register;
-    fn collect(&self, request: &mut Request) -> Result<()>;
-}
 
 impl From<heim::Error> for Error {
     fn from(err: heim::Error) -> Self {
@@ -72,4 +64,15 @@ pub fn register_ds<T: Configure>(_: &Instance, connection: &T) -> Result<()> {
     connection.register_source(register_ds!(host_mem))?;
     connection.register_source(register_ds!(host_swap))?;
     Ok(())
+}
+
+#[test]
+fn test(){
+    let _ = crate::new_connection("sqlite:agent:default").unwrap();
+}
+
+#[test]
+#[should_panic(expected = "exit code:")]
+fn test_run_cmd_faild(){
+    run_command("cat /eta/test1").unwrap();
 }

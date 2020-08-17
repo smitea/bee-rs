@@ -74,4 +74,15 @@ fn test() {
     assert_eq!(Some(3), columns.get_index("IsNice"));
     assert_eq!(Some(4), columns.get_index("Image"));
     assert_eq!(Some(5), columns.get_index("Phone"));
+
+    let mut columns = crate::Columns::new();
+    columns.push("name", DataType::String);
+
+    assert_eq!(Option::Some(&"name".to_owned()),columns.get_name(0));
+    assert_eq!(Option::None,columns.get_name(1));
+
+    assert_eq!(Option::Some(0),columns.get_index("name"));
+    assert_eq!(Option::None,columns.get_index("age"));
+
+    assert!(columns.iter().len() > 0);
 }
