@@ -191,3 +191,42 @@ fn test() {
     }
     assert!(index > 0);
 }
+
+#[test]
+#[should_panic(expected = "no such table: test")]
+fn test_faild_no_such_table() {
+    let lua_script = r#"
+        SELECT * FROM test();
+    "#;
+    let conn = crate::new_connection("sqlite:agent:default").unwrap();
+    let statement = conn
+        .new_statement(lua_script, Duration::from_secs(2))
+        .unwrap();
+    let _ = statement.wait().unwrap();
+}
+
+#[test]
+#[should_panic(expected = "near ")]
+fn test_faild_sql_error() {
+    let lua_script = r#"
+        SELEC * FROM test;
+    "#;
+    let conn = crate::new_connection("sqlite:agent:default").unwrap();
+    let statement = conn
+        .new_statement(lua_script, Duration::from_secs(2))
+        .unwrap();
+    let _ = statement.wait().unwrap();
+}
+
+#[test]
+#[should_panic(expected = "no such function")]
+fn test_faild_not_such_func() {
+    let lua_script = r#"
+      SELECT csv(name) FROM filesystem();
+    "#;
+    let conn = crate::new_connection("sqlite:agent:default").unwrap();
+    let statement = conn
+        .new_statement(lua_script, Duration::from_secs(2))
+        .unwrap();
+    let _ = statement.wait().unwrap();
+}

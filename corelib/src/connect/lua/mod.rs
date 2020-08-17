@@ -148,3 +148,40 @@ fn test() {
     }
     assert!(index > 0);
 }
+
+
+#[test]
+#[should_panic(expected = "runtime error:")]
+fn test_no_such_func() {
+    let lua_script = r#"
+        local resp=test();
+        while(resp:has_next())
+        do
+            _request:commit(_next);
+        end
+    "#;
+    let conn = crate::new_connection("lua:agent:default").unwrap();
+
+    let statement = conn
+        .new_statement(lua_script, std::time::Duration::from_secs(2))
+        .unwrap();
+    let _ = statement.wait().unwrap();
+}
+
+#[test]
+#[should_panic(expected = "runtime error:")]
+fn test_runtime() {
+    let lua_script = r#"
+        local resp=test();
+        while(resp:has_next())
+        do
+            _request:commit(io);
+        end
+    "#;
+    let conn = crate::new_connection("lua:agent:default").unwrap();
+
+    let statement = conn
+        .new_statement(lua_script, std::time::Duration::from_secs(2))
+        .unwrap();
+    let _ = statement.wait().unwrap();
+}
