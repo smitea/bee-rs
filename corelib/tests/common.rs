@@ -1,5 +1,6 @@
 use bee_core::Connection;
 #[cfg(test)]
+#[allow(dead_code)]
 pub fn init_log() {
     let _ = env_logger::builder()
         .is_test(true)

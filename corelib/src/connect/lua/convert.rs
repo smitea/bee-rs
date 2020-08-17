@@ -1,5 +1,5 @@
 use crate::{value::Bytes, Args, Error, Request, Response, Value};
-use rlua::{FromLuaMulti,Table, UserData};
+use rlua::{FromLuaMulti, Table, UserData};
 use std::{cell::Ref, convert::TryFrom};
 
 const BASE_CODE: i32 = 241;
@@ -28,7 +28,7 @@ impl<'a> rlua::ToLua<'a> for Value {
             Value::Integer(val) => rlua::Value::Number(val as f64),
             Value::Number(val) => rlua::Value::Number(val),
             Value::Bytes(val) => {
-                let data = lua.create_userdata(BytesWrapper(val.len(),val))?;
+                let data = lua.create_userdata(BytesWrapper(val.len(), val))?;
                 rlua::Value::UserData(data)
             }
             Value::Nil => rlua::Value::Nil,
@@ -138,3 +138,34 @@ impl UserData for Request {
 }
 
 impl UserData for BytesWrapper {}
+
+#[test]
+fn test_tryfrom_value() {
+    let lua = rlua::Lua::new();
+    lua.context(move |lua_context| {
+        let _ = Value::try_from(rlua::Value::Boolean(false)).unwrap();
+        if let Ok(func) = lua_context.create_function(|_, _: String| Ok(())) {
+            let rs = Value::try_from(rlua::Value::Function(func));
+            assert!(rs.is_err());
+        }
+
+        if let Ok(func) = lua_context.create_function(|_, _: String| Ok(())) {
+            assert!(Value::try_from(rlua::Value::Thread(lua_context.create_thread(func).unwrap())).is_err());
+        }
+
+        if let Ok(data) = lua_context.create_userdata(BytesWrapper(2,vec![0x01,0x02])) {
+            assert!(Value::try_from(rlua::Value::UserData(data)).is_ok());
+        }
+
+        let (req,_) = crate::new_req_none(Args::new());
+        if let Ok(data) = lua_context.create_userdata(req) {
+            assert!(Value::try_from(rlua::Value::UserData(data)).is_err());
+        }
+
+        let err = Value::try_from(rlua::Value::Error(rlua::Error::BindError));
+        assert!(err.is_err());
+
+        assert!(Value::try_from(rlua::Value::Integer(10)).is_ok());
+        assert!(Value::try_from(rlua::Value::Table(lua_context.globals())).is_err());
+    });
+}

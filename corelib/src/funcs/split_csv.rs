@@ -24,8 +24,6 @@ fn parse_csv(line: &str, values: &mut Vec<String>) -> Result<()> {
                 }
             }
         } else {
-            // 等于 0
-            values.push(line.to_string());
             return Ok(());
         }
     } else {

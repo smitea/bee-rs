@@ -8,7 +8,7 @@ pub fn get(output: Vec<u8>, index: i32, data_type: String, default: String) -> R
     let len = array.len() as i32;
     let mut index = index;
     if index < 0 {
-        index = len + index - 1;
+        index = len + index;
     }
     let value = array.get(index as usize).unwrap_or(&default);
     let data_type = data_type.as_str();
@@ -48,6 +48,11 @@ fn test() {
     );
     assert_eq!(
         Value::from("He"),
-        get(bytes, 2, "TEXT".to_string(), "0".to_string()).unwrap()
+        get(bytes.clone(), 2, "TEXT".to_string(), "0".to_string()).unwrap()
+    );
+
+    assert_eq!(
+        Value::from("He"),
+        get(bytes, -1, "TEXT".to_string(), "He".to_string()).unwrap()
     );
 }
