@@ -9,6 +9,7 @@ pub fn init_log() {
 #[cfg(test)]
 #[cfg(feature = "remote")]
 #[cfg(feature = "sqlite")]
+#[allow(dead_code)]
 pub fn new_ssh_connection_for_sql() -> bee_core::Result<Box<dyn Connection>> {
     bee_core::new_connection(
         "sqlite:remote:password://oracle:admin@127.0.0.1:20002/bee?connect_timeout=5",
@@ -17,12 +18,14 @@ pub fn new_ssh_connection_for_sql() -> bee_core::Result<Box<dyn Connection>> {
 #[cfg(test)]
 #[cfg(feature = "agent")]
 #[cfg(feature = "sqlite")]
+#[allow(dead_code)]
 pub fn new_agent_connection_for_sql() -> bee_core::Result<Box<dyn Connection>> {
     bee_core::new_connection("sqlite:agent:default")
 }
 #[cfg(test)]
 #[cfg(feature = "remote")]
 #[cfg(feature = "lua")]
+#[allow(dead_code)]
 pub fn new_ssh_connection_for_lua() -> bee_core::Result<Box<dyn Connection>> {
     bee_core::new_connection(
         "lua:remote:password://oracle:admin@127.0.0.1:20002/bee?connect_timeout=5",
@@ -31,12 +34,14 @@ pub fn new_ssh_connection_for_lua() -> bee_core::Result<Box<dyn Connection>> {
 #[cfg(test)]
 #[cfg(feature = "agent")]
 #[cfg(feature = "lua")]
+#[allow(dead_code)]
 pub fn new_agent_connection_for_lua() -> bee_core::Result<Box<dyn Connection>> {
     bee_core::new_connection("lua:agent:default")
 }
 #[cfg(test)]
 #[cfg(feature = "remote")]
 #[cfg(feature = "sqlite")]
+#[allow(dead_code)]
 pub fn assert_remote_sql(
     sql: &str,
     columns: bee_core::Columns,
@@ -49,6 +54,7 @@ pub fn assert_remote_sql(
 #[cfg(test)]
 #[cfg(feature = "agent")]
 #[cfg(feature = "sqlite")]
+#[allow(dead_code)]
 pub fn assert_agent_sql(
     sql: &str,
     columns: bee_core::Columns,
@@ -61,6 +67,7 @@ pub fn assert_agent_sql(
 #[cfg(test)]
 #[cfg(feature = "remote")]
 #[cfg(feature = "lua")]
+#[allow(dead_code)]
 pub fn assert_remote_lua(script: &str, row_size: usize, timeout: std::time::Duration) {
     let session: Box<dyn Connection> = new_ssh_connection_for_lua().unwrap();
     assert_row(session, script, row_size, timeout);
@@ -68,6 +75,7 @@ pub fn assert_remote_lua(script: &str, row_size: usize, timeout: std::time::Dura
 #[cfg(test)]
 #[cfg(feature = "agent")]
 #[cfg(feature = "lua")]
+#[allow(dead_code)]
 pub fn assert_agent_lua(script: &str, row_size: usize, timeout: std::time::Duration) {
     let session: Box<dyn Connection> = new_agent_connection_for_lua().unwrap();
     assert_row(session, script, row_size, timeout);
