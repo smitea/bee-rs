@@ -47,6 +47,7 @@ fn setup_logger(level: &str) -> Result<(), fern::InitError> {
 }
 
 #[tokio::main]
+#[cfg(not(tarpaulin_include))]
 async fn main() -> Result<(), Box<dyn Error>> {
     let cli: CLI = CLI::from_args();
 

@@ -65,6 +65,7 @@ enum ScriptCommand<'a> {
 }
 
 #[tokio::main]
+#[cfg(not(tarpaulin_include))]
 async fn main() {
     let mut ctx = Context::new();
     let mut completer = NoCommentCompleter { inner: None };
