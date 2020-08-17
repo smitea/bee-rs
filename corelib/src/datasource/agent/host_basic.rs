@@ -1,7 +1,7 @@
 use crate::{Columns, Error, Promise, Row, ToData};
 
 use super::{format, run_command};
-use async_std::task::block_on;
+use smol::block_on;
 use heim::{
     host::{platform, uptime, Platform},
     memory::{memory, Memory},

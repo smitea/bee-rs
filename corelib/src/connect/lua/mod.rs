@@ -1,7 +1,6 @@
 use crate::{
     new_req, new_req_none, Args, Configure, Connection, DataSource, Request, Result, Value,
 };
-use async_std::task;
 use rlua::{Context, Lua};
 use std::{
     collections::HashMap,
@@ -102,7 +101,7 @@ fn register_context(
         let function = context.create_function(move |_, args: Args| {
             let ds = ds.clone();
             let (mut request, statement) = new_req_none(args);
-            let _ = task::spawn(async move {
+            let _ = smol::run(async move {
                 if let Err(err) = ds.collect(&mut request) {
                     let _ = request.error(err);
                 }
@@ -135,19 +134,17 @@ fn test() {
     "#;
     let conn = crate::new_connection("lua:agent:default").unwrap();
 
-    task::block_on(async {
-        let statement = conn
-            .new_statement(lua_script, std::time::Duration::from_secs(2))
-            .unwrap();
-        let resp = statement.wait().unwrap();
-        let cols = resp.columns();
-        assert_eq!(5, cols.len());
+    let statement = conn
+        .new_statement(lua_script, std::time::Duration::from_secs(2))
+        .unwrap();
+    let resp = statement.wait().unwrap();
+    let cols = resp.columns();
+    assert_eq!(5, cols.len());
 
-        let mut index = 0;
-        for row in resp {
-            let _ = row.unwrap();
-            index += 1;
-        }
-        assert!(index > 0);
-    });
+    let mut index = 0;
+    for row in resp {
+        let _ = row.unwrap();
+        index += 1;
+    }
+    assert!(index > 0);
 }

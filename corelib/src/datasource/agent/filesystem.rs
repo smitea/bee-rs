@@ -1,7 +1,7 @@
 use crate::{Columns, Error, Promise, Row, ToData};
 
 use async_std::prelude::*;
-use async_std::task::block_on;
+use smol::block_on;
 use heim::disk::partitions_physical;
 use std::ffi::OsStr;
 

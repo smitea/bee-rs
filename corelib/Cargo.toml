@@ -7,6 +7,7 @@ edition = "2018"
 [dependencies]
 url                 = {version = "*"}
 parking_lot         = {version = "0.11"}
+smol                = {version = "0.3"}
 async-std           = {version = "*"}
 log                 = {version = "*"}
 state               = {version = "0.4"}

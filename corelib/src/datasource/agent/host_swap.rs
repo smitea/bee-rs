@@ -1,5 +1,5 @@
 use crate::{Columns, Promise, Result, Row, ToData};
-use async_std::task::block_on;
+use smol::block_on;
 use heim::memory::{swap, Swap};
 
 #[derive(Data)]

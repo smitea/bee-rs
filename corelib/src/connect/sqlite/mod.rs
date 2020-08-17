@@ -4,7 +4,6 @@ mod sql_tab;
 
 use crate::Error;
 use crate::{new_req, Args, Columns, DataSource, DataType, Request, State, Statement, Value};
-use async_std::task;
 use convert::INVALIDCOLUMNCOUNT;
 use parking_lot::*;
 use rusqlite::vtab::eponymous_only_module;
@@ -77,7 +76,7 @@ impl crate::Connection for SqliteSession {
         let script = script.to_string();
 
         // 异步接收该结果，该异步处于协程中
-        let _ = task::spawn(async move {
+        let _ = smol::run(async move{
             let req = request;
             let rs = commit_statement(conn, script, &req);
             if let Err(err) = rs {
@@ -178,19 +177,17 @@ fn test() {
         SELECT * FROM filesystem() WHERE name NOT LIKE '%tmp%'
     "#;
     let conn = crate::new_connection("sqlite:agent:default").unwrap();
-    task::block_on(async {
-        let statement = conn
-            .new_statement(lua_script, Duration::from_secs(2))
-            .unwrap();
-        let resp = statement.wait().unwrap();
-        let cols = resp.columns();
-        assert_eq!(5, cols.len());
+    let statement = conn
+        .new_statement(lua_script, Duration::from_secs(2))
+        .unwrap();
+    let resp = statement.wait().unwrap();
+    let cols = resp.columns();
+    assert_eq!(5, cols.len());
 
-        let mut index = 0;
-        for row in resp {
-            let _ = row.unwrap();
-            index += 1;
-        }
-        assert!(index > 0);
-    });
+    let mut index = 0;
+    for row in resp {
+        let _ = row.unwrap();
+        index += 1;
+    }
+    assert!(index > 0);
 }
