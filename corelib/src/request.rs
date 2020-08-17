@@ -3,6 +3,7 @@ use crate::{Args, Columns, Error, Result, Row, State, Value};
 use std::sync::mpsc::SyncSender;
 
 /// 请求实例，用于异步发送数据流
+#[derive(Clone)]
 pub struct Request {
     args: Args,
     has_columns: bool,

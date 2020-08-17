@@ -56,19 +56,34 @@ impl Connection for LuaSession {
         timeout: std::time::Duration,
     ) -> crate::Result<crate::Statement> {
         let (request, response) = new_req(Args::new(), timeout);
-
-        let lua = Lua::new();
-        lua.context(|mut lua_context| {
-            register_context(
-                request,
-                &mut lua_context,
-                self.ds_list.clone(),
-                self.func_list.clone(),
-            )?;
-            lua_context.load(script).exec()
-        })?;
+        let script = script.to_string();
+        let ds_list = self.ds_list.clone();
+        let func_list = self.func_list.clone();
+        run_lua_script(request.clone(), script, ds_list, func_list)?;
         Ok(response)
     }
+}
+
+fn run_lua_script(
+    request: Request,
+    script: String,
+    ds_list: Arc<Mutex<HashMap<String, Arc<Box<dyn DataSource>>>>>,
+    func_list: Arc<Mutex<HashMap<String, Arc<Box<CallFunc>>>>>,
+) -> Result<()> {
+    let lua = Lua::new();
+    lua.context(move |mut lua_context| {
+        let script = script.clone();
+        let request = request;
+        register_context(
+            request,
+            &mut lua_context,
+            ds_list.clone(),
+            func_list.clone(),
+        )?;
+        lua_context.load(&script).exec()
+    })?;
+
+    return Ok(());
 }
 
 fn register_context(
@@ -109,26 +124,30 @@ fn register_context(
     Ok(())
 }
 
+#[test]
+fn test() {
+    let lua_script = r#"
+        local resp=filesystem();
+        while(resp:has_next())
+        do
+            _request:commit(_next);
+        end
+    "#;
+    let conn = crate::new_connection("lua:agent:default").unwrap();
 
-// #[test]
-// fn test() {
-//     let lua_script = r#"
-//         local resp=filesystem();
-//         while(resp:has_next())
-//         do
-//             _request:commit(_next);
-//         end
-//     "#;
-//     let conn = crate::new_connection("lua:agent:default").unwrap();
-//     let statement = conn.new_statement(lua_script, std::time::Duration::from_secs(2)).unwrap();
-//     let resp = statement.wait().unwrap();
-//     let cols = resp.columns();
-//     assert_eq!(5,cols.len());
+    task::block_on(async {
+        let statement = conn
+            .new_statement(lua_script, std::time::Duration::from_secs(2))
+            .unwrap();
+        let resp = statement.wait().unwrap();
+        let cols = resp.columns();
+        assert_eq!(5, cols.len());
 
-//     let mut index = 0;
-//     for row in resp{
-//         let _ = row.unwrap();
-//         index += 1;
-//     }
-//     assert!(index > 0);
-// }
+        let mut index = 0;
+        for row in resp {
+            let _ = row.unwrap();
+            index += 1;
+        }
+        assert!(index > 0);
+    });
+}
