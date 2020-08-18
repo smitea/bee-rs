@@ -16,6 +16,7 @@ bee-codegen         = {version = "0.1.0", path = "../codegen"}
 
 ssh                 = {optional = true, git = "https://github.com/sMitea/ssh.git"}
 heim                = {optional = true, git = "https://github.com/sMitea/heim.git", features = ["host","memory","cpu","disk","runtime-async-std"]}
+timeout-readwrite   = {optional = true, version = "*"}
 humantime           = {optional = true, version = "*"}
 num_cpus            = {optional = true, version = "*"}
 libc                = {optional = true, version = "0.2"}
@@ -31,7 +32,7 @@ default     = [
 ]
 
 remote      =   ["ssh","libc"]
-agent       =   ["heim","humantime","num_cpus"]
+agent       =   ["heim","humantime","num_cpus","timeout-readwrite"]
 sqlite      =   ["rusqlite"]
 lua         =   ["rlua"]
 
