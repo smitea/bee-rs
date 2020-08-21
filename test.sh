@@ -54,6 +54,7 @@ EOT
 
 cat $SSHDIR/sshd_config
 
+mkdir ~/.ssh
 # Start an ssh server
 /usr/sbin/sshd -p $RUST_SSH_FIXTURE_PORT -f $SSHDIR/sshd_config -E $SSHDIR/sshd.log
 # Give it a moment to start up
