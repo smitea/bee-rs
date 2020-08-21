@@ -27,7 +27,7 @@ fn test() {
         let mut promise = req.head::<Status>().unwrap();
         mkdir(
             session,
-            "/home".to_owned(),
+            "/tmp".to_owned(),
             "bethune".to_owned(),
             &mut promise,
         )

@@ -2,6 +2,7 @@ mod common;
 #[cfg(test)]
 #[cfg(feature = "remote")]
 #[cfg(feature = "lua")]
+#[cfg(target_os = "linux")]
 mod test{    
     use crate::common::*;
     use std::time::Duration;
@@ -23,7 +24,7 @@ mod test{
         // tmpfs              65536       8     65528   1% /proc/sched_debug
         // tmpfs            1018900       0   1018900   0% /sys/firmware
         assert_remote_lua(r#"
-            local resp = remote_shell("df -k",10)
+            local resp = shell("df -k",10)
             while(resp:has_next())
             do
                 local line = _next["line"]

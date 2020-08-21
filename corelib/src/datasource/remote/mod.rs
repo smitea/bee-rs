@@ -45,8 +45,7 @@ pub fn new_session(instance: &Instance) -> Result<Arc<Mutex<Session>>> {
             .ok_or(Error::index_param("password"))?;
         sess.userauth_password(password)?;
     } else if protocol == "pubkey" {
-        let public_key: String = instance.get_param("public_key")?;
-        sess.userauth_publickey_auto(Option::Some(public_key.as_str()))?;
+        sess.userauth_agent()?;
     } else {
         return Err(Error::index_param("protocol"));
     }
@@ -78,7 +77,18 @@ pub fn register_ds<T: Configure>(instance: &Instance, connection: &T) -> Result<
 }
 
 #[cfg(test)]
+#[cfg(feature = "sqlite")]
 fn new_test_sess()  -> Result<Arc<Mutex<Session>>>{
-    let instance: Instance = "sqlite:remote:password://root:root@127.0.0.1:10329/bee?connect_timeout=5".parse()?;
+    let uri = get_remote_uri();
+    let instance: Instance = format!("sqlite:{}",uri).parse()?;
     new_session(&instance)
+}
+
+#[cfg(test)]
+pub fn get_remote_uri() -> String {
+    let port = std::env::var("RUST_SSH_FIXTURE_PORT")
+        .map(|s| s.parse().unwrap())
+        .unwrap_or(22);
+    let user = std::env::var("USER").unwrap();
+    return format!("remote:pubkey://{}@127.0.0.1:{}/bee?connect_timeout=5",user,port);
 }
