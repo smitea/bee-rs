@@ -5,7 +5,7 @@ mod sql_tab;
 use crate::Error;
 use crate::{new_req, Args, Columns, DataSource, DataType, Request, State, Statement, Value};
 use convert::INVALIDCOLUMNCOUNT;
-use parking_lot::*;
+use parking_lot::ReentrantMutex;
 use rusqlite::vtab::eponymous_only_module;
 use rusqlite::{Column, Connection, Result, Row, NO_PARAMS};
 use sql_tab::SQLTab;
@@ -14,14 +14,14 @@ use std::{sync::Arc, time::Duration};
 
 /// Sqlite 连接信息
 pub struct SqliteSession {
-    connection: Arc<Mutex<Connection>>,
+    connection: Arc<ReentrantMutex<Connection>>,
 }
 
 impl SqliteSession {
     /// 创建一个 Sqlite 连接 (单线程模式)
     pub fn new() -> Result<Self> {
         Ok(Self {
-            connection: Arc::new(Mutex::new(Connection::open_in_memory()?)),
+            connection: Arc::new(ReentrantMutex::new(Connection::open_in_memory()?)),
         })
     }
 }
@@ -38,7 +38,6 @@ impl crate::Configure for SqliteSession {
     {
         debug!("register function - {}", name);
         let lock = self.connection.lock();
-
         // 扩展 Sqlite 函数
         lock.create_scalar_function(
             name,
@@ -74,15 +73,11 @@ impl crate::Connection for SqliteSession {
         let (request, response) = new_req(Args::new(), timeout);
         let conn = self.connection.clone();
         let script = script.to_string();
-
-        // 异步接收该结果，该异步处于协程中
-        let _ = smol::run(async move{
-            let req = request;
-            let rs = commit_statement(conn, script, &req);
-            if let Err(err) = rs {
-                let _ = req.error(err);
-            }
-        });
+        let req = request;
+        let rs = commit_statement(conn, script, &req);
+        if let Err(err) = rs {
+            let _ = req.error(err);
+        }
 
         Ok(response)
     }
@@ -90,7 +85,7 @@ impl crate::Connection for SqliteSession {
 
 /// 提交一个请求，并执行
 fn commit_statement(
-    db: Arc<Mutex<Connection>>,
+    db: Arc<ReentrantMutex<Connection>>,
     script: String,
     request: &Request,
 ) -> Result<(), Error> {

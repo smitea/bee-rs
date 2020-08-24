@@ -1,20 +1,21 @@
 use crate::datasource::BashRow;
-use crate::{Error, Promise, Result,ToType,ToData};
+use crate::{Error, Promise, Result, ToData, ToType};
+use parking_lot::RwLock;
 use ssh::Session;
+use std::sync::Arc;
 use std::time::Duration;
-use std::{
-    sync::{Arc, Mutex},
-};
 
 #[datasource]
 fn shell(
-    session: Arc<Mutex<Session>>,
+    session: Arc<RwLock<Session>>,
     script: String,
     timeout: u32,
     promise: &mut Promise<BashRow>,
 ) -> Result<()> {
-    info!("ssh [{}] with timeout = {}s",script, timeout);
-    let mut lock = session.lock()?;
+    info!("ssh [{}] with timeout = {}s", script, timeout);
+    let mut lock = session
+        .try_write_for(Duration::from_secs(timeout as u64))
+        .ok_or(Error::lock_faild("lock timeout at 'shell'"))?;
     let mut channel = lock.channel_new()?;
     channel.open_session()?;
 
@@ -52,7 +53,10 @@ fn shell(
             }
         } else {
             channel.send_eof()?;
-            return Err(Error::io_timeout(format!("cmd - [{}] is timeout in {} s", script,timeout)));
+            return Err(Error::io_timeout(format!(
+                "cmd - [{}] is timeout in {} s",
+                script, timeout
+            )));
         }
     }
 
@@ -102,7 +106,7 @@ fn test() {
     let (req, resp) = crate::new_req(crate::Args::new(), std::time::Duration::from_secs(2));
     {
         let mut promise = req.head::<BashRow>().unwrap();
-        shell(session,"echo 'Hello world'".to_owned(), 2, &mut promise).unwrap();
+        shell(session, "echo 'Hello world'".to_owned(), 2, &mut promise).unwrap();
         drop(req);
     }
 
@@ -133,7 +137,13 @@ fn test_timeout() {
     let (req, resp) = crate::new_req(crate::Args::new(), std::time::Duration::from_secs(2));
     {
         let mut promise = req.head::<BashRow>().unwrap();
-        shell(session,"sleep(5),echo 'Hello world'".to_owned(), 2, &mut promise).unwrap();
+        shell(
+            session,
+            "sleep(5),echo 'Hello world'".to_owned(),
+            2,
+            &mut promise,
+        )
+        .unwrap();
         drop(req);
     }
 

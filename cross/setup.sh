@@ -1,0 +1,1 @@
+docker build -t smitea/x86_64-unknown-linux-musl cross/x86_64-unknown-linux-musl/

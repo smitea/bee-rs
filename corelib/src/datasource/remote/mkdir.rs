@@ -1,16 +1,20 @@
-use crate::{datasource::Status, Promise, Result, ToData, ToType};
+use crate::{datasource::Status, Promise, Result, ToData, ToType, Error};
 use ssh::Session;
-use std::sync::{Arc, Mutex};
+use parking_lot::RwLock;
+use std::{time::Duration, sync::{Arc}};
 
 #[datasource]
 pub fn mkdir(
-    session: Arc<Mutex<Session>>,
+    session: Arc<RwLock<Session>>,
     home_dir: String,
     dir: String,
+    timeout: u32,
     promise: &mut Promise<Status>,
 ) -> Result<()> {
-    let mut lock = session.lock()?;
-    let mut scp = lock.scp_new(ssh::Mode::RECURSIVE | ssh::Mode::WRITE, &home_dir)?;
+    let mut session = session
+        .try_write_for(Duration::from_secs(timeout as u64))
+        .ok_or(Error::lock_faild("lock timeout at 'mkdir'"))?;
+    let mut scp = session.scp_new(ssh::Mode::RECURSIVE | ssh::Mode::WRITE, &home_dir)?;
     scp.init()?;
     scp.push_directory(&dir, 0o755)?;
 
@@ -29,6 +33,7 @@ fn test() {
             session,
             "/tmp".to_owned(),
             "bethune".to_owned(),
+            10,
             &mut promise,
         )
         .unwrap();

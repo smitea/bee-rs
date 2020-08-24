@@ -7,9 +7,17 @@ use timeout_readwrite::TimeoutReadExt;
 
 #[datasource]
 fn shell(script: String, timeout: u32, promise: &mut Promise<BashRow>) -> Result<()> {
-    let child = Command::new("sh")
-        .arg("-c")
-        .arg(script)
+    let mut cmd = if cfg!(target_os = "windows") {
+        let mut cmd = Command::new("cmd");
+        cmd.args(&["/C", &script]);
+        cmd
+    } else {
+        let mut cmd = Command::new("sh");
+        cmd.arg("-c").arg(&script);
+        cmd
+    };
+
+    let child = cmd
         .stdout(std::process::Stdio::piped())
         .stderr(std::process::Stdio::null())
         .spawn()?;
@@ -19,8 +27,10 @@ fn shell(script: String, timeout: u32, promise: &mut Promise<BashRow>) -> Result
     ))?;
 
     let mut data = String::new();
-    let _ = stdout.with_timeout(Duration::from_secs(timeout as u64)).read_to_string(&mut data)?;
-    
+    let _ = stdout
+        .with_timeout(Duration::from_secs(timeout as u64))
+        .read_to_string(&mut data)?;
+
     let mut cur = data.lines();
     let mut index = 0;
     while let Some(line) = cur.next() {

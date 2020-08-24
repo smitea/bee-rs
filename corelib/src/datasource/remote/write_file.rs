@@ -1,21 +1,21 @@
-use crate::{datasource::Status, Promise, Result, ToData, ToType};
+use crate::{datasource::Status, Promise, Result, ToData, ToType, Error};
+use parking_lot::RwLock;
 use ssh::Session;
-use std::{
-    io::Write,
-    path::PathBuf,
-    sync::{Arc, Mutex},
-};
+use std::{io::Write, path::PathBuf, sync::Arc, time::Duration};
 
 #[datasource]
 pub fn write_file(
-    session: Arc<Mutex<Session>>,
+    session: Arc<RwLock<Session>>,
     base_path: String,
     path: String,
     content: String,
+    timeout: u32,
     promise: &mut Promise<Status>,
 ) -> Result<()> {
     let path: PathBuf = path.parse()?;
-    let mut lock = session.lock()?;
+    let mut lock = session
+        .try_write_for(Duration::from_secs(timeout as u64))
+        .ok_or(Error::lock_faild("lock timeout at 'write_file'"))?;
     let mut channel = lock.scp_new(ssh::Mode::WRITE, base_path)?;
     channel.init()?;
     channel.push_file(path, content.len(), 0o644)?;
@@ -37,6 +37,7 @@ fn test() {
             "/tmp".to_string(),
             "test.log".to_owned(),
             "hello world".to_string(),
+            10,
             &mut promise,
         )
         .unwrap();

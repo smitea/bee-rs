@@ -74,7 +74,7 @@ impl Error {
     from_code!(index_range, PARAM_INDEX, usize);
     from_code!(index_param, PARAM_INDEX, &str);
     from_code!(io_timeout, IO_TIMEDOUT, String);
-    from_code!(lock_faild, LOCKED, String);
+    from_code!(lock_faild, LOCKED, &str);
 
     pub fn new<T: ToString>(code: i32, msg: T) -> Self {
         Self {
@@ -206,6 +206,15 @@ impl<T> From<std::sync::PoisonError<std::sync::MutexGuard<'_, T>>> for Error {
 
 impl<T> From<std::sync::PoisonError<std::sync::RwLockReadGuard<'_, T>>> for Error {
     fn from(err: std::sync::PoisonError<std::sync::RwLockReadGuard<'_, T>>) -> Self {
+        Self {
+            code: MUTEX_LOCKED,
+            msg: err.to_string(),
+        }
+    }
+}
+
+impl<T> From<std::sync::PoisonError<parking_lot::ReentrantMutexGuard<'_, T>>> for Error{
+    fn from(err: std::sync::PoisonError<parking_lot::ReentrantMutexGuard<'_, T>>) -> Self {
         Self {
             code: MUTEX_LOCKED,
             msg: err.to_string(),

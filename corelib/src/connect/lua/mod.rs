@@ -1,33 +1,34 @@
 use crate::{
-    new_req, new_req_none, Args, Configure, Connection, DataSource, Request, Result, Value,
+    new_req, new_req_none, Args, Configure, Connection, DataSource, Error, Request, Result, Value,
 };
+use parking_lot::RwLock;
 use rlua::{Context, Lua};
-use std::{
-    collections::HashMap,
-    sync::{Arc, Mutex},
-};
+use std::{collections::HashMap, sync::Arc, time::Duration};
 
 type CallFunc = dyn 'static + Send + Sync + Fn(&Args) -> Result<Value>;
 
 mod convert;
 
 pub struct LuaSession {
-    ds_list: Arc<Mutex<HashMap<String, Arc<Box<dyn DataSource>>>>>,
-    func_list: Arc<Mutex<HashMap<String, Arc<Box<CallFunc>>>>>,
+    ds_list: Arc<RwLock<HashMap<String, Arc<Box<dyn DataSource>>>>>,
+    func_list: Arc<RwLock<HashMap<String, Arc<Box<CallFunc>>>>>,
 }
 
 impl LuaSession {
     pub fn new() -> LuaSession {
         LuaSession {
-            ds_list: Arc::new(Mutex::new(HashMap::new())),
-            func_list: Arc::new(Mutex::new(HashMap::new())),
+            ds_list: Arc::new(RwLock::new(HashMap::new())),
+            func_list: Arc::new(RwLock::new(HashMap::new())),
         }
     }
 }
 
 impl Configure for LuaSession {
     fn register_source(&self, ds: Box<dyn crate::DataSource>) -> crate::Result<()> {
-        let mut lock = self.ds_list.lock()?;
+        let mut lock = self
+            .ds_list
+            .try_write_for(Duration::from_secs(10))
+            .ok_or(Error::lock_faild("lock timeout at 'mkdir'"))?;
         let _ = lock.insert(ds.name().to_owned(), Arc::new(ds));
         Ok(())
     }
@@ -36,7 +37,10 @@ impl Configure for LuaSession {
     where
         F: Fn(&crate::Args) -> crate::Result<V> + Send + Sync + std::panic::UnwindSafe + 'static,
     {
-        let mut lock = self.func_list.lock()?;
+        let mut lock = self
+            .func_list
+            .try_write_for(Duration::from_secs(10))
+            .ok_or(Error::lock_faild("lock timeout at 'mkdir'"))?;
         let _ = lock.insert(
             name.to_owned(),
             Arc::new(Box::new(move |args: &Args| {
@@ -58,6 +62,7 @@ impl Connection for LuaSession {
         let script = script.to_string();
         let ds_list = self.ds_list.clone();
         let func_list = self.func_list.clone();
+
         run_lua_script(request.clone(), script, ds_list, func_list)?;
         Ok(response)
     }
@@ -66,8 +71,8 @@ impl Connection for LuaSession {
 fn run_lua_script(
     request: Request,
     script: String,
-    ds_list: Arc<Mutex<HashMap<String, Arc<Box<dyn DataSource>>>>>,
-    func_list: Arc<Mutex<HashMap<String, Arc<Box<CallFunc>>>>>,
+    ds_list: Arc<RwLock<HashMap<String, Arc<Box<dyn DataSource>>>>>,
+    func_list: Arc<RwLock<HashMap<String, Arc<Box<CallFunc>>>>>,
 ) -> Result<()> {
     let lua = Lua::new();
     lua.context(move |mut lua_context| {
@@ -88,14 +93,16 @@ fn run_lua_script(
 fn register_context(
     request: Request,
     context: &mut Context,
-    ds_list: Arc<Mutex<HashMap<String, Arc<Box<dyn DataSource>>>>>,
+    ds_list: Arc<RwLock<HashMap<String, Arc<Box<dyn DataSource>>>>>,
     func_list: Arc<
-        Mutex<HashMap<String, Arc<Box<dyn Fn(&Args) -> Result<Value> + Send + Sync + 'static>>>>,
+        RwLock<HashMap<String, Arc<Box<dyn Fn(&Args) -> Result<Value> + Send + Sync + 'static>>>>,
     >,
 ) -> Result<()> {
     let global = context.globals();
 
-    let lock = ds_list.lock()?;
+    let lock = ds_list
+        .try_read_for(Duration::from_secs(10))
+        .ok_or(Error::lock_faild("lock timeout at 'mkdir'"))?;
     for (key, ds) in lock.iter() {
         let ds = ds.clone();
         let function = context.create_function(move |_, args: Args| {
@@ -112,7 +119,9 @@ fn register_context(
         global.set(key.clone(), function)?;
     }
 
-    let lock = func_list.lock()?;
+    let lock = func_list
+        .try_read_for(Duration::from_secs(10))
+        .ok_or(Error::lock_faild("lock timeout at 'mkdir'"))?;
     for (key, func) in lock.iter() {
         let func = func.clone();
         let function = context.create_function(move |_, args: Args| Ok(func(&args)?))?;
@@ -148,7 +157,6 @@ fn test() {
     }
     assert!(index > 0);
 }
-
 
 #[test]
 #[should_panic(expected = "runtime error:")]

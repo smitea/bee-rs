@@ -1,8 +1,8 @@
-use crate::{value::Bytes, Columns, Promise, Result, Row, ToData, ToType};
+use crate::{value::Bytes, Columns, Promise, Result, Row, ToData, ToType, Error};
+use parking_lot::RwLock;
 use ssh::{Session, SftpFile};
 use std::{
-    alloc::Layout, io::Read, io::Seek, io::SeekFrom, mem::size_of, path::PathBuf, sync::Arc,
-    sync::Mutex,
+    alloc::Layout, io::Read, io::Seek, io::SeekFrom, mem::size_of, path::PathBuf, sync::Arc, time::Duration,
 };
 
 #[derive(Data)]
@@ -14,13 +14,16 @@ pub struct FileBytes {
 
 #[datasource]
 pub fn read_file(
-    session: Arc<Mutex<Session>>,
+    session: Arc<RwLock<Session>>,
     path: String,
     start_index: i64,
     size: i64,
+    timeout: u32,
     promise: &mut Promise<FileBytes>,
 ) -> Result<()> {
-    let mut lock = session.lock()?;
+    let mut lock = session
+        .try_write_for(Duration::from_secs(timeout as u64))
+        .ok_or(Error::lock_faild("lock timeout at 'read_file'"))?;
     let mut sftp = lock.sftp_new()?;
     sftp.init()?;
 
@@ -90,7 +93,7 @@ fn test() {
     let (req, resp) = crate::new_req(crate::Args::new(), std::time::Duration::from_secs(2));
     {
         let mut promise = req.head::<FileBytes>().unwrap();
-        read_file(session, path.clone(), 2, 5, &mut promise).unwrap();
+        read_file(session, path.clone(), 2, 5,10, &mut promise).unwrap();
         drop(req);
     }
 

@@ -1,16 +1,20 @@
 #[macro_use]
 extern crate prettytable;
+#[cfg(unix)]
 extern crate liner;
 
 use bee_codec::*;
+#[cfg(unix)]
 use env::current_dir;
 use futures;
 use futures::SinkExt;
+#[cfg(unix)]
 use liner::{Completer, Context, CursorPosition, Event, EventKind, FilenameCompleter, Prompt};
 use prettytable::{format, Cell, Row, Table};
+#[cfg(unix)]
+use std::mem::replace;
 use std::{
     env, io,
-    mem::replace,
     net::SocketAddr,
     sync::atomic::{AtomicUsize, Ordering},
     time::{Duration, SystemTime},
@@ -19,14 +23,17 @@ use tokio::net::tcp::{OwnedReadHalf, OwnedWriteHalf};
 use tokio::net::TcpStream;
 use tokio::stream::StreamExt;
 
+#[cfg(unix)]
 fn highlight_dodo(s: &str) -> String {
     s.to_string()
 }
 
+#[cfg(unix)]
 struct NoCommentCompleter {
     inner: Option<FilenameCompleter>,
 }
 
+#[cfg(unix)]
 impl Completer for NoCommentCompleter {
     fn completions(&mut self, start: &str) -> Vec<String> {
         if let Some(inner) = &mut self.inner {
@@ -67,7 +74,9 @@ enum ScriptCommand<'a> {
 #[tokio::main]
 #[cfg(not(tarpaulin_include))]
 async fn main() {
+    #[cfg(unix)]
     let mut ctx = Context::new();
+    #[cfg(unix)]
     let mut completer = NoCommentCompleter { inner: None };
 
     let version = env!("CARGO_PKG_VERSION").to_string();
@@ -83,7 +92,10 @@ async fn main() {
 
     let req_id = AtomicUsize::new(0);
     loop {
+        #[cfg(unix)]
         let (line, is_exit) = read_line(&mut ctx, &mut completer);
+        #[cfg(windows)]
+        let (line, is_exit) = read_line();
         if is_exit {
             break;
         }
@@ -147,6 +159,8 @@ async fn main() {
     }
 
     println!("Bye bye");
+
+    #[cfg(unix)]
     ctx.history.commit_to_file();
 }
 
@@ -210,6 +224,7 @@ fn is_end(line: &str) -> bool {
     return last_char == 0x3B;
 }
 
+#[cfg(unix)]
 fn read_line(ctx: &mut Context, completer: &mut NoCommentCompleter) -> (String, bool) {
     match ctx.read_line(
         Prompt::from("> "),
@@ -217,6 +232,19 @@ fn read_line(ctx: &mut Context, completer: &mut NoCommentCompleter) -> (String, 
         completer,
     ) {
         Ok(line) => (line, false),
+        Err(err) => ("".to_owned(), can_exit(err)),
+    }
+}
+
+#[cfg(windows)]
+fn read_line() -> (String, bool) {
+    use std::io::prelude::*;
+
+    let mut line = String::new();
+    let stdin = io::stdin();
+    let mut lock = stdin.lock();
+    match lock.read_line(&mut line) {
+        Ok(_) => (line, false),
         Err(err) => ("".to_owned(), can_exit(err)),
     }
 }
