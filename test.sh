@@ -50,6 +50,7 @@ AllowTcpForwarding yes
 MaxStartups 500
 # Relax modes when the repo is under eg: /var/tmp
 StrictModes no
+UseDNS no
 EOT
 
 cat $SSHDIR/sshd_config
