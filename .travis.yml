@@ -20,4 +20,4 @@ script:
   - RUSTFLAGS="-Ccodegen-units=1 -Cinline-threshold=0 -Coverflow-checks=off"
   - cargo clean
   - cargo build
-  - ./test.sh
+  - ./remote-test.sh
