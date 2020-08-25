@@ -36,7 +36,11 @@ impl Instance {
                 let url = Url::parse(url)?;
                 connect_mode = url.scheme().to_owned();
                 username = Some(url.username().to_string());
-                password = url.password().map(|val| val.to_string());
+                password = url.password().map(|val| {
+                    percent_encoding::percent_decode_str(val)
+                        .decode_utf8_lossy()
+                        .to_string()
+                });
                 host = url.host_str().map(|val| val.to_string());
                 port = url.port();
                 resource = Some(url.path().replace("/", "").to_string());
@@ -160,21 +164,21 @@ impl FromStr for Instance {
 #[test]
 fn test() {
     let instance = Instance::from(
-        "sqlite:remote:password://oracle:admin@127.0.0.1:22/bee?connect_timeout=1000",
+        "sqlite:remote:password://bp_test:jQ7@MfUXv4NMzNRk!&@127.0.0.1:22/bee?connect_timeout=5",
     )
     .unwrap();
 
     assert_eq!("sqlite".to_owned(), instance.get_sess_mode());
     assert_eq!("remote".to_owned(), instance.get_ds_mode());
     assert_eq!("password".to_owned(), instance.get_connect_mod());
-    assert_eq!(Some("oracle".to_owned()), instance.get_username());
-    assert_eq!(Some("admin"), instance.get_password());
+    assert_eq!(Some("bp_test".to_owned()), instance.get_username());
+    assert_eq!(Some("jQ7@MfUXv4NMzNRk!&"), instance.get_password());
     assert_eq!(Some("127.0.0.1"), instance.get_host());
     assert_eq!(Some(22), instance.get_port());
     assert_eq!(Some("bee".to_owned()), instance.get_res());
 
     let timeout: i32 = instance.get_param("connect_timeout").unwrap();
-    assert_eq!(1000_i32, timeout);
+    assert_eq!(5_i32, timeout);
 
     let instance = Instance::from("sqlite:agent:default").unwrap();
 
