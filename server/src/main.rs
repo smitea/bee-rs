@@ -7,7 +7,7 @@ use std::result::Result;
 use tokio::net::tcp::{OwnedReadHalf, OwnedWriteHalf};
 use tokio::net::TcpListener;
 use tokio::stream::StreamExt;
-use tokio::sync::Mutex;
+use tokio::{runtime::Runtime, sync::Mutex};
 
 use futures;
 use futures::SinkExt;
@@ -15,13 +15,18 @@ use std::error::Error;
 use std::net::SocketAddr;
 use std::str::FromStr;
 use std::time::{Duration, SystemTime};
-use std::{collections::HashMap, io::ErrorKind, path::Path, sync::Arc};
+use std::{
+    collections::HashMap,
+    io::ErrorKind,
+    path::{Path, PathBuf},
+    sync::Arc,
+};
 use structopt::StructOpt;
 
-const BEE: &str = "bee";
+const HIVE: &str = "hive";
 const CONNECT: &str = "connection";
 const REQUEST: &str = "statements";
-const QUERY_STATE_SQL: &str = "show network_states";
+const QUERY_NETWORK_STATES: &str = "show network_states";
 
 type State = Arc<Mutex<HashMap<SocketAddr, ClientInfo>>>;
 
@@ -41,18 +46,18 @@ fn setup_logger(level: &str) -> Result<(), fern::InitError> {
         })
         .level(log::LevelFilter::from_str(level).unwrap())
         .chain(std::io::stdout())
-        .chain(fern::log_file(current_dir.join("bee.log"))?)
+        .chain(fern::log_file(current_dir.join(format!("{}.log", HIVE)))?)
         .apply()?;
     Ok(())
 }
 
-#[tokio::main]
-#[cfg(not(tarpaulin_include))]
-async fn main() -> Result<(), Box<dyn Error>> {
+fn main() -> Result<(), Box<dyn Error>> {
     let cli: CLI = CLI::from_args();
 
     match cli {
-        CLI::Run(config) => start(config).await?,
+        CLI::Run(config) => run(config)?,
+        CLI::Start(config) => start(config)?,
+        CLI::Stop => stop()?,
     }
 
     Ok(())
@@ -62,6 +67,12 @@ async fn main() -> Result<(), Box<dyn Error>> {
 enum CLI {
     #[structopt(name = "run")]
     Run(Config),
+
+    #[structopt(name = "start")]
+    Start(Config),
+
+    #[structopt(name = "stop")]
+    Stop,
 }
 
 #[derive(Debug, StructOpt)]
@@ -123,10 +134,131 @@ impl ToData for ClientInfo {
     }
 }
 
-async fn start(config: Config) -> Result<(), Box<dyn Error>> {
+#[cfg(unix)]
+fn start(config: Config) -> Result<(), Box<dyn Error>> {
+    let pid_path = get_pid_path();
+    if let Ok(pid) = std::fs::read_to_string(&pid_path) {
+        eprintln!("The Hive is started, and PID: {}", pid.red());
+        return Ok(());
+    }
+
+    let daemonize = daemonize::Daemonize::new()
+        .working_directory(
+            replace_env("${CWD}").expect("failed to replace current_dir for work_directory"),
+        )
+        .exit_action(move || {
+            // 等待 1 sec 后读取 PID
+            std::thread::sleep(Duration::from_secs(1));
+            let pid_path = get_pid_path();
+
+            match std::fs::read_to_string(&pid_path) {
+                Ok(pid) => println!("Success to start of Hive, and PID: {}", pid.green()),
+                Err(err) => {
+                    eprintln!("Failed to open PID file [{:?}] - {}", &pid_path, err);
+                }
+            }
+        })
+        .privileged_action(move || {
+            let pid_path = get_pid_path();
+            if let Err(err) = std::fs::write(&pid_path, format!("{}", std::process::id())) {
+                error!("Failed to write PID file [{:?}] - {}", &pid_path, err);
+            }
+            if let Err(err) = run(config) {
+                error!("{}", err);
+            }
+        });
+    match daemonize.start() {
+        Ok(_) => println!("Success to start of Hive"),
+        Err(e) => eprintln!("Error, {}", e),
+    }
+    Ok(())
+}
+
+#[cfg(unix)]
+fn get_pid_path() -> PathBuf {
+    replace_env("${CWD}/.pid").expect("failed to replace current_dir for [.pid]")
+}
+
+#[cfg(windows)]
+fn start(config: Config) -> Result<(), Box<dyn Error>> {
+    Ok(())
+}
+
+#[cfg(unix)]
+fn stop() -> Result<(), Box<dyn Error>> {
+    let path = get_pid_path();
+
+    let msg = "Hive is not start, Please run 'hive start' for start of Hive".color("red");
+    let pid = if let Ok(pid) = std::fs::read_to_string(&path) {
+        if pid.is_empty() {
+            println!("{}", msg);
+            return Ok(());
+        }
+        pid
+    } else {
+        println!("{}", msg);
+        return Ok(());
+    };
+
+    let pid: i32 = pid.parse()?;
+    unsafe {
+        libc::kill(pid, 15 as libc::c_int);
+    }
+    std::fs::remove_file(path)?;
+    println!("{}", format!("Stop Hive of {}", pid).color("green"));
+
+    Ok(())
+}
+
+#[cfg(windows)]
+fn stop() -> Result<(), Box<dyn Error>> {}
+
+#[cfg(unix)]
+pub fn replace_env<T: Into<String>>(val: T) -> Result<PathBuf, String> {
+    let val = val.into();
+    // 获取当前目录
+    let current_dir = std::env::current_exe().or_else(|error| Err(format!("{}", error)))?;
+    let current_dir: &Path = current_dir.parent().unwrap();
+    debug!("{:?}", current_dir);
+    let current_dir = current_dir.as_os_str();
+    let current_dir = current_dir
+        .to_str()
+        .ok_or(format!("can't get path['{}'] as ASCII", val))?;
+    return val
+        .replace("${CWD}", current_dir)
+        .parse()
+        .or_else(|error| Err(format!("{}", error)));
+}
+
+fn run(config: Config) -> Result<(), Box<dyn Error>> {
     setup_logger(&config.log_level)?;
     print_headers(&config)?;
 
+    let mut runtime = Runtime::new()?;
+    runtime.block_on(async move { start_server(config).await })
+}
+
+fn print_headers(config: &Config) -> Result<(), Box<dyn Error>> {
+    let version: String = env!("CARGO_PKG_VERSION").to_string();
+    let banner: String = r#"
+  __     
+ / _)_ _ 
+/(_)(-(- "#
+        .to_owned();
+    println!("{}    {}", banner.color("yellow"), version.color("green"));
+    println!("");
+    info!(target: HIVE, "log level            {}", config.log_level);
+    info!(target: HIVE, "--------------------------------");
+    info!(
+        target: HIVE,
+        "{}",
+        format!("listener on          {}:{} ...", config.ip, config.port).color("green")
+    );
+    info!(target: HIVE, "");
+    Ok(())
+}
+
+async fn start_server(config: Config) -> Result<(), Box<dyn Error>> {
     let addr = format!("{}:{}", config.ip, config.port);
     let mut listener = TcpListener::bind(&addr).await?;
     let clients: State = Arc::new(Mutex::new(HashMap::new()));
@@ -153,26 +285,6 @@ async fn start(config: Config) -> Result<(), Box<dyn Error>> {
             }
         });
     }
-}
-
-fn print_headers(config: &Config) -> Result<(), Box<dyn Error>> {
-    let version: String = env!("CARGO_PKG_VERSION").to_string();
-    let banner: String = r#"
-  __     
- / _)_ _ 
-/(_)(-(- "#
-        .to_owned();
-    println!("{}    {}", banner.color("yellow"), version.color("green"));
-    println!("");
-    info!(target: BEE, "log level            {}", config.log_level);
-    info!(target: BEE, "--------------------------------");
-    info!(
-        target: BEE,
-        "{}",
-        format!("listener on          {}:{} ...", config.ip, config.port).color("green")
-    );
-    info!(target: BEE, "");
-    Ok(())
 }
 
 async fn process<'a>(
@@ -225,7 +337,7 @@ async fn process<'a>(
     info!(target: CONNECT, "[{}] - connected.", app);
     while let Some(Ok(Packet::StatementReq(req))) = reader_framed.next().await {
         {
-            if req.script != QUERY_STATE_SQL {
+            if req.script != QUERY_NETWORK_STATES {
                 // 更新状态信息
                 let mut state = state.lock().await;
                 state.entry(addr).and_modify(|c| {
@@ -259,7 +371,7 @@ async fn process<'a>(
         let elapsed = now.elapsed()?;
         let used = elapsed.as_secs_f64();
         {
-            if req.script != QUERY_STATE_SQL {
+            if req.script != QUERY_NETWORK_STATES {
                 // 更新状态信息
                 let mut state = state.lock().await;
                 state.entry(addr).and_modify(|c| {
@@ -284,7 +396,7 @@ async fn new_statement<'a>(
         "[{}-{}] process {} in {} s.", app_name, req.id, req.script, req.timeout
     );
 
-    let statement = if req.script == QUERY_STATE_SQL {
+    let statement = if req.script == QUERY_NETWORK_STATES {
         // 返回当前所有连接的执行状态
         network_states_resp(state, req).await?
     } else {
