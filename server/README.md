@@ -10,7 +10,14 @@ Hive 是 [Bee 数据传输协议](../codec/README.md) 协议的一种服务端�
 
 Example: 
 
+
+On Unix: 
 ```shell
 hive run --ip=0.0.0.0 --port=6142 --log_level=Info
 ```
 
+On Windows:
+```shell
+install.exe
+sc start hive
+```

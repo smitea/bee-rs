@@ -139,9 +139,12 @@ impl ToData for ClientInfo {
 fn start() -> Result<(), Box<dyn Error>> {
     let cli: CLI = CLI::from_args();
     match cli {
-        CLI::Run(config) => run(config)?,
-        CLI::Start(config) => start_service(config)?,
-        CLI::Stop => stop()?,
+        CLI::Run(config) => {
+            let mut runtime = Runtime::new()?;
+            run(config,&mut runtime)
+        },
+        CLI::Start(config) => start_service(config),
+        CLI::Stop => stop(),
     }
 }
 
@@ -172,17 +175,16 @@ fn start_service(config: Config) -> Result<(), Box<dyn Error>> {
         })
         .privileged_action(move || {
             let pid_path = get_pid_path();
-            let mut runtime = if let Ok(runtime) = Runtime::new() {
-                runtime;
-            } else {
+            if let Ok(mut runtime) = Runtime::new() {
+                if let Err(err) = std::fs::write(&pid_path, format!("{}", std::process::id())) {
+                    error!("Failed to write PID file [{:?}] - {}", &pid_path, err);
+                }
+                if let Err(err) = run(config, &mut runtime) {
+                    error!("{}", err);
+                }
+            }else {
                 error!("Failed to new runtime")
             };
-            if let Err(err) = std::fs::write(&pid_path, format!("{}", std::process::id())) {
-                error!("Failed to write PID file [{:?}] - {}", &pid_path, err);
-            }
-            if let Err(err) = run(config, &mut runtime) {
-                error!("{}", err);
-            }
         });
     match daemonize.start() {
         Ok(_) => println!("Success to start of {}", HIVE),
@@ -192,7 +194,7 @@ fn start_service(config: Config) -> Result<(), Box<dyn Error>> {
 }
 
 #[cfg(unix)]
-fn get_pid_path() -> PathBuf {
+fn get_pid_path() -> std::path::PathBuf {
     replace_env("${CWD}/.pid").expect("Failed to replace current_dir for [.pid]")
 }
 
@@ -295,7 +297,7 @@ pub fn run_service(arguments: Vec<std::ffi::OsString>) -> Result<(), Box<dyn Err
 fn stop() -> Result<(), Box<dyn Error>> {
     let path = get_pid_path();
 
-    let msg = format(
+    let msg = format!(
         "{} is not start, Please run '{} start' for start of {}",
         HIVE,
         HIVE,
@@ -324,7 +326,7 @@ fn stop() -> Result<(), Box<dyn Error>> {
 }
 
 #[cfg(unix)]
-pub fn replace_env<T: Into<String>>(val: T) -> Result<PathBuf, String> {
+pub fn replace_env<T: Into<String>>(val: T) -> Result<std::path::PathBuf, String> {
     let val = val.into();
     // 获取当前目录
     let current_dir = std::env::current_exe().or_else(|error| Err(format!("{}", error)))?;

@@ -1,14 +1,11 @@
-use std::error::Error;
-
-const PKG_NAME: &str = env!("CARGO_PKG_NAME");
-
 #[cfg(windows)]
-fn main() -> Result<(),Box<dyn Error>> {
+fn main() -> Result<(), Box<dyn std::error::Error>> {
     use std::{thread, time::Duration};
     use windows_service::{
         service::{ServiceAccess, ServiceState},
         service_manager::{ServiceManager, ServiceManagerAccess},
     };
+    const PKG_NAME: &str = env!("CARGO_PKG_NAME");
 
     let manager_access = ServiceManagerAccess::CONNECT;
     let service_manager = ServiceManager::local_computer(None::<&str>, manager_access)?;
