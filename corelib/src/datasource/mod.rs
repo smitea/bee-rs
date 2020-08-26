@@ -3,7 +3,7 @@ use crate::{Columns, Configure, Instance, Register, Request, Result, Row};
 #[cfg(feature = "agent")]
 mod agent;
 mod debug;
-#[cfg(not(target_os = "windows"))]
+#[cfg(unix)]
 #[cfg(feature = "remote")]
 mod remote;
 
@@ -36,7 +36,7 @@ pub fn register_ds<T: Configure>(instance: &Instance, connection: &T) -> Result<
             agent::register_ds(instance, connection)?;
         }
         #[cfg(feature = "remote")]
-        #[cfg(not(target_os = "windows"))]
+        #[cfg(unix)]
         "remote" => {
             remote::register_ds(instance, connection)?;
         }

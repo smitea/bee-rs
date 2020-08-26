@@ -21,3 +21,15 @@ libc                = "*"
 
 [target.'cfg(windows)'.dependencies]
 windows-service     = "*"
+
+[[bin]]
+path = "src/install.rs"
+name = "install"
+
+[[bin]]
+path = "src/main.rs"
+name = "hive"
+
+[[bin]]
+path = "src/uninstall.rs"
+name = "uninstall"

@@ -18,12 +18,24 @@ use std::time::{Duration, SystemTime};
 use std::{
     collections::HashMap,
     io::ErrorKind,
-    path::{Path, PathBuf},
-    sync::Arc,
+    path::Path,
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc,
+    },
 };
 use structopt::StructOpt;
 
-const HIVE: &str = "hive";
+#[cfg(windows)]
+#[macro_use]
+extern crate windows_service;
+#[cfg(windows)]
+define_windows_service!(ffi_service_main, start_service);
+
+const PKG_NAME: &str = env!("CARGO_PKG_NAME");
+const PKG_VERSION: &str = env!("CARGO_PKG_VERSION");
+
+const HIVE: &str = PKG_NAME;
 const CONNECT: &str = "connection";
 const REQUEST: &str = "statements";
 const QUERY_NETWORK_STATES: &str = "show network_states";
@@ -52,25 +64,17 @@ fn setup_logger(level: &str) -> Result<(), fern::InitError> {
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
-    let cli: CLI = CLI::from_args();
-
-    match cli {
-        CLI::Run(config) => run(config)?,
-        CLI::Start(config) => start(config)?,
-        CLI::Stop => stop()?,
-    }
-
+    start()?;
     Ok(())
 }
 
+#[cfg(unix)]
 #[derive(Debug, StructOpt)]
 enum CLI {
     #[structopt(name = "run")]
     Run(Config),
-
     #[structopt(name = "start")]
     Start(Config),
-
     #[structopt(name = "stop")]
     Stop,
 }
@@ -135,10 +139,20 @@ impl ToData for ClientInfo {
 }
 
 #[cfg(unix)]
-fn start(config: Config) -> Result<(), Box<dyn Error>> {
+fn start() -> Result<(), Box<dyn Error>> {
+    let cli: CLI = CLI::from_args();
+    match cli {
+        CLI::Run(config) => run(config)?,
+        CLI::Start(config) => start_service(config)?,
+        CLI::Stop => stop()?,
+    }
+}
+
+#[cfg(unix)]
+fn start_service(config: Config) -> Result<(), Box<dyn Error>> {
     let pid_path = get_pid_path();
     if let Ok(pid) = std::fs::read_to_string(&pid_path) {
-        eprintln!("The Hive is started, and PID: {}", pid.red());
+        eprintln!("The {} is started, and PID: {}", HIVE, pid.red());
         return Ok(());
     }
 
@@ -152,7 +166,7 @@ fn start(config: Config) -> Result<(), Box<dyn Error>> {
             let pid_path = get_pid_path();
 
             match std::fs::read_to_string(&pid_path) {
-                Ok(pid) => println!("Success to start of Hive, and PID: {}", pid.green()),
+                Ok(pid) => println!("Success to start of {}, and PID: {}", HIVE, pid.green()),
                 Err(err) => {
                     eprintln!("Failed to open PID file [{:?}] - {}", &pid_path, err);
                 }
@@ -160,15 +174,20 @@ fn start(config: Config) -> Result<(), Box<dyn Error>> {
         })
         .privileged_action(move || {
             let pid_path = get_pid_path();
+            let mut runtime = if let Ok(runtime) = Runtime::new() {
+                runtime;
+            } else {
+                error!("Failed to new runtime")
+            };
             if let Err(err) = std::fs::write(&pid_path, format!("{}", std::process::id())) {
                 error!("Failed to write PID file [{:?}] - {}", &pid_path, err);
             }
-            if let Err(err) = run(config) {
+            if let Err(err) = run(config, &mut runtime) {
                 error!("{}", err);
             }
         });
     match daemonize.start() {
-        Ok(_) => println!("Success to start of Hive"),
+        Ok(_) => println!("Success to start of {}", HIVE),
         Err(e) => eprintln!("Error, {}", e),
     }
     Ok(())
@@ -176,11 +195,94 @@ fn start(config: Config) -> Result<(), Box<dyn Error>> {
 
 #[cfg(unix)]
 fn get_pid_path() -> PathBuf {
-    replace_env("${CWD}/.pid").expect("failed to replace current_dir for [.pid]")
+    replace_env("${CWD}/.pid").expect("Failed to replace current_dir for [.pid]")
 }
 
 #[cfg(windows)]
-fn start(config: Config) -> Result<(), Box<dyn Error>> {
+fn start() -> Result<(), Box<dyn Error>> {
+    windows_service::service_dispatcher::start(HIVE, ffi_service_main)?;
+    Ok(())
+}
+
+#[cfg(windows)]
+fn start_service(arguments: Vec<std::ffi::OsString>) {
+    if let Err(e) = run_service(arguments) {
+        error!("{}", e);
+    }
+}
+
+#[cfg(windows)]
+pub fn run_service(arguments: Vec<std::ffi::OsString>) -> Result<(), Box<dyn Error>> {
+    use windows_service::{
+        service::{
+            ServiceControl, ServiceControlAccept, ServiceExitCode, ServiceState, ServiceStatus,
+            ServiceType,
+        },
+        service_control_handler::{self, ServiceControlHandlerResult},
+    };
+    let config = {
+        let mut log_level = "Info".to_owned();
+        let mut ip = "0.0.0.0".to_owned();
+        let mut port = 6142_u16;
+        for arg in arguments {
+            let arg = arg.to_str().unwrap_or("");
+            if arg.contains("--log_level=") {
+                log_level = arg.replace("--log_level=", "");
+            } else if arg.contains("--ip=") {
+                ip = arg.replace("--ip=", "");
+            } else if arg.contains("--port=") {
+                port = arg.replace("--port=", "").trim().parse()?;
+            }
+        }
+
+        Config {
+            log_level,
+            ip,
+            port,
+        }
+    };
+    let event_exit_code = Arc::new(AtomicBool::new(false));
+    let mut runtime = Runtime::new()?;
+
+    let ctr_exit_code = event_exit_code.clone();
+    let event_handler = move |control_event| -> ServiceControlHandlerResult {
+        match control_event {
+            ServiceControl::Interrogate | ServiceControl::Stop => {
+                ctr_exit_code.store(true, Ordering::Relaxed);
+                ServiceControlHandlerResult::NoError
+            }
+            _ => ServiceControlHandlerResult::NotImplemented,
+        }
+    };
+
+    let status_handle = service_control_handler::register(HIVE, event_handler)?;
+    status_handle.set_service_status(ServiceStatus {
+        service_type: ServiceType::OWN_PROCESS,
+        current_state: ServiceState::Running,
+        controls_accepted: ServiceControlAccept::STOP,
+        exit_code: ServiceExitCode::Win32(0),
+        checkpoint: 0,
+        wait_hint: Duration::default(),
+        process_id: None,
+    })?;
+
+    let exit_code = if let Err(err) = run(config, &mut runtime, event_exit_code) {
+        error!("{}", err);
+        1
+    } else {
+        0
+    };
+
+    status_handle.set_service_status(ServiceStatus {
+        service_type: ServiceType::OWN_PROCESS,
+        current_state: ServiceState::Stopped,
+        controls_accepted: ServiceControlAccept::empty(),
+        exit_code: ServiceExitCode::Win32(exit_code),
+        checkpoint: 0,
+        wait_hint: Duration::default(),
+        process_id: None,
+    })?;
+
     Ok(())
 }
 
@@ -188,7 +290,13 @@ fn start(config: Config) -> Result<(), Box<dyn Error>> {
 fn stop() -> Result<(), Box<dyn Error>> {
     let path = get_pid_path();
 
-    let msg = "Hive is not start, Please run 'hive start' for start of Hive".color("red");
+    let msg = format(
+        "{} is not start, Please run '{} start' for start of {}",
+        HIVE,
+        HIVE,
+        HIVE,
+    )
+    .color("red");
     let pid = if let Ok(pid) = std::fs::read_to_string(&path) {
         if pid.is_empty() {
             println!("{}", msg);
@@ -205,13 +313,10 @@ fn stop() -> Result<(), Box<dyn Error>> {
         libc::kill(pid, 15 as libc::c_int);
     }
     std::fs::remove_file(path)?;
-    println!("{}", format!("Stop Hive of {}", pid).color("green"));
+    println!("{}", format!("Stop {} of {}", HIVE, pid).color("green"));
 
     Ok(())
 }
-
-#[cfg(windows)]
-fn stop() -> Result<(), Box<dyn Error>> {}
 
 #[cfg(unix)]
 pub fn replace_env<T: Into<String>>(val: T) -> Result<PathBuf, String> {
@@ -230,22 +335,28 @@ pub fn replace_env<T: Into<String>>(val: T) -> Result<PathBuf, String> {
         .or_else(|error| Err(format!("{}", error)));
 }
 
-fn run(config: Config) -> Result<(), Box<dyn Error>> {
+fn run(
+    config: Config,
+    runtime: &mut Runtime,
+    #[cfg(windows)] 
+    exit_state: Arc<AtomicBool>,
+) -> Result<(), Box<dyn Error>> {
     setup_logger(&config.log_level)?;
     print_headers(&config)?;
-
-    let mut runtime = Runtime::new()?;
-    runtime.block_on(async move { start_server(config).await })
+    runtime.block_on(async move { start_server(config,#[cfg(windows)]  exit_state).await })
 }
 
 fn print_headers(config: &Config) -> Result<(), Box<dyn Error>> {
-    let version: String = env!("CARGO_PKG_VERSION").to_string();
     let banner: String = r#"
   __     
  / _)_ _ 
 /(_)(-(- "#
         .to_owned();
-    println!("{}    {}", banner.color("yellow"), version.color("green"));
+    println!(
+        "{}    {}",
+        banner.color("yellow"),
+        PKG_VERSION.color("green")
+    );
     println!("");
     info!(target: HIVE, "log level            {}", config.log_level);
     info!(target: HIVE, "--------------------------------");
@@ -258,7 +369,7 @@ fn print_headers(config: &Config) -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-async fn start_server(config: Config) -> Result<(), Box<dyn Error>> {
+async fn start_server(config: Config,#[cfg(windows)] exit_code: Arc<AtomicBool>) -> Result<(), Box<dyn Error>> {
     let addr = format!("{}:{}", config.ip, config.port);
     let mut listener = TcpListener::bind(&addr).await?;
     let clients: State = Arc::new(Mutex::new(HashMap::new()));
@@ -270,12 +381,30 @@ async fn start_server(config: Config) -> Result<(), Box<dyn Error>> {
         stream.set_send_buffer_size(1024 * 10)?;
 
         let state = clients.clone();
+
+        #[cfg(windows)] 
+        let exit_code = exit_code.clone();
+        #[cfg(windows)] 
+        let event_exit_code = exit_code.clone();
+
         tokio::spawn(async move {
+            #[cfg(windows)] 
+            let exit_code = exit_code.clone();
+
             info!(target: CONNECT, "{} - connected", addr);
             let (reader, writer) = stream.into_split();
             let reader_framed = FramedRead::new(reader, PacketCodec);
             let writer_framed = FramedWrite::new(writer, PacketCodec);
-            if let Err(e) = process(state.clone(), reader_framed, writer_framed, addr).await {
+            if let Err(e) = process(
+                state.clone(),
+                #[cfg(windows)] 
+                exit_code.clone(),
+                reader_framed,
+                writer_framed,
+                addr,
+            )
+            .await
+            {
                 info!("an error occurred; error = {:?}", e);
             }
             {
@@ -284,11 +413,18 @@ async fn start_server(config: Config) -> Result<(), Box<dyn Error>> {
                 state.remove(&addr);
             }
         });
+
+        #[cfg(windows)] 
+        if event_exit_code.load(Ordering::Relaxed) {
+            return Ok(());
+        }
     }
 }
 
 async fn process<'a>(
     state: State,
+    #[cfg(windows)] 
+    exit_code: Arc<AtomicBool>,
     mut reader_framed: FramedRead<OwnedReadHalf, PacketCodec>,
     mut writer_framed: FramedWrite<OwnedWriteHalf, PacketCodec>,
     addr: SocketAddr,
@@ -336,6 +472,13 @@ async fn process<'a>(
     let app = req.application;
     info!(target: CONNECT, "[{}] - connected.", app);
     while let Some(Ok(Packet::StatementReq(req))) = reader_framed.next().await {
+        {
+            #[cfg(windows)] 
+            if exit_code.load(Ordering::Relaxed) {
+                error!(target: HIVE, "The service state is aborted.");
+                break;
+            }
+        }
         {
             if req.script != QUERY_NETWORK_STATES {
                 // 更新状态信息
