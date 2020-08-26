@@ -19,10 +19,7 @@ use std::{
     collections::HashMap,
     io::ErrorKind,
     path::Path,
-    sync::{
-        atomic::{AtomicBool, Ordering},
-        Arc,
-    },
+    sync::Arc,
 };
 use structopt::StructOpt;
 
@@ -150,6 +147,7 @@ fn start() -> Result<(), Box<dyn Error>> {
 
 #[cfg(unix)]
 fn start_service(config: Config) -> Result<(), Box<dyn Error>> {
+    setup_logger(&config.log_level)?;
     let pid_path = get_pid_path();
     if let Ok(pid) = std::fs::read_to_string(&pid_path) {
         eprintln!("The {} is started, and PID: {}", HIVE, pid.red());
@@ -220,6 +218,9 @@ pub fn run_service(arguments: Vec<std::ffi::OsString>) -> Result<(), Box<dyn Err
         },
         service_control_handler::{self, ServiceControlHandlerResult},
     };
+
+    setup_logger("Debug")?;
+    info!("args: {:?}",arguments);
     let config = {
         let mut log_level = "Info".to_owned();
         let mut ip = "0.0.0.0".to_owned();
@@ -241,14 +242,14 @@ pub fn run_service(arguments: Vec<std::ffi::OsString>) -> Result<(), Box<dyn Err
             port,
         }
     };
-    let event_exit_code = Arc::new(AtomicBool::new(false));
     let mut runtime = Runtime::new()?;
+    let (tx, rx) = std::sync::mpsc::channel();
 
-    let ctr_exit_code = event_exit_code.clone();
+    let sin_tx = tx.clone();
     let event_handler = move |control_event| -> ServiceControlHandlerResult {
         match control_event {
             ServiceControl::Interrogate | ServiceControl::Stop => {
-                ctr_exit_code.store(true, Ordering::Relaxed);
+                let _ = tx.send((ServiceState::Stopped, 0));
                 ServiceControlHandlerResult::NoError
             }
             _ => ServiceControlHandlerResult::NotImplemented,
@@ -266,22 +267,26 @@ pub fn run_service(arguments: Vec<std::ffi::OsString>) -> Result<(), Box<dyn Err
         process_id: None,
     })?;
 
-    let exit_code = if let Err(err) = run(config, &mut runtime, event_exit_code) {
-        error!("{}", err);
-        1
-    } else {
-        0
-    };
+    std::thread::spawn(move || {
+        if let Err(err) = run(config, &mut runtime) {
+            error!("{}", err);
+            let _ = sin_tx.send((ServiceState::Stopped, 1));
+        } else {
+            let _ = sin_tx.send((ServiceState::Stopped, 0));
+        };
+    });
 
-    status_handle.set_service_status(ServiceStatus {
-        service_type: ServiceType::OWN_PROCESS,
-        current_state: ServiceState::Stopped,
-        controls_accepted: ServiceControlAccept::empty(),
-        exit_code: ServiceExitCode::Win32(exit_code),
-        checkpoint: 0,
-        wait_hint: Duration::default(),
-        process_id: None,
-    })?;
+    if let Ok((state, code)) = rx.recv() {
+        status_handle.set_service_status(ServiceStatus {
+            service_type: ServiceType::OWN_PROCESS,
+            current_state: state,
+            controls_accepted: ServiceControlAccept::empty(),
+            exit_code: ServiceExitCode::Win32(code),
+            checkpoint: 0,
+            wait_hint: Duration::default(),
+            process_id: None,
+        })?;
+    };
 
     Ok(())
 }
@@ -335,15 +340,9 @@ pub fn replace_env<T: Into<String>>(val: T) -> Result<PathBuf, String> {
         .or_else(|error| Err(format!("{}", error)));
 }
 
-fn run(
-    config: Config,
-    runtime: &mut Runtime,
-    #[cfg(windows)] 
-    exit_state: Arc<AtomicBool>,
-) -> Result<(), Box<dyn Error>> {
-    setup_logger(&config.log_level)?;
+fn run(config: Config, runtime: &mut Runtime) -> Result<(), Box<dyn Error>> {
     print_headers(&config)?;
-    runtime.block_on(async move { start_server(config,#[cfg(windows)]  exit_state).await })
+    runtime.block_on(async move { start_server(config).await })
 }
 
 fn print_headers(config: &Config) -> Result<(), Box<dyn Error>> {
@@ -369,7 +368,7 @@ fn print_headers(config: &Config) -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-async fn start_server(config: Config,#[cfg(windows)] exit_code: Arc<AtomicBool>) -> Result<(), Box<dyn Error>> {
+async fn start_server(config: Config) -> Result<(), Box<dyn Error>> {
     let addr = format!("{}:{}", config.ip, config.port);
     let mut listener = TcpListener::bind(&addr).await?;
     let clients: State = Arc::new(Mutex::new(HashMap::new()));
@@ -381,30 +380,12 @@ async fn start_server(config: Config,#[cfg(windows)] exit_code: Arc<AtomicBool>)
         stream.set_send_buffer_size(1024 * 10)?;
 
         let state = clients.clone();
-
-        #[cfg(windows)] 
-        let exit_code = exit_code.clone();
-        #[cfg(windows)] 
-        let event_exit_code = exit_code.clone();
-
         tokio::spawn(async move {
-            #[cfg(windows)] 
-            let exit_code = exit_code.clone();
-
             info!(target: CONNECT, "{} - connected", addr);
             let (reader, writer) = stream.into_split();
             let reader_framed = FramedRead::new(reader, PacketCodec);
             let writer_framed = FramedWrite::new(writer, PacketCodec);
-            if let Err(e) = process(
-                state.clone(),
-                #[cfg(windows)] 
-                exit_code.clone(),
-                reader_framed,
-                writer_framed,
-                addr,
-            )
-            .await
-            {
+            if let Err(e) = process(state.clone(), reader_framed, writer_framed, addr).await {
                 info!("an error occurred; error = {:?}", e);
             }
             {
@@ -413,18 +394,11 @@ async fn start_server(config: Config,#[cfg(windows)] exit_code: Arc<AtomicBool>)
                 state.remove(&addr);
             }
         });
-
-        #[cfg(windows)] 
-        if event_exit_code.load(Ordering::Relaxed) {
-            return Ok(());
-        }
     }
 }
 
 async fn process<'a>(
     state: State,
-    #[cfg(windows)] 
-    exit_code: Arc<AtomicBool>,
     mut reader_framed: FramedRead<OwnedReadHalf, PacketCodec>,
     mut writer_framed: FramedWrite<OwnedWriteHalf, PacketCodec>,
     addr: SocketAddr,
@@ -472,13 +446,6 @@ async fn process<'a>(
     let app = req.application;
     info!(target: CONNECT, "[{}] - connected.", app);
     while let Some(Ok(Packet::StatementReq(req))) = reader_framed.next().await {
-        {
-            #[cfg(windows)] 
-            if exit_code.load(Ordering::Relaxed) {
-                error!(target: HIVE, "The service state is aborted.");
-                break;
-            }
-        }
         {
             if req.script != QUERY_NETWORK_STATES {
                 // 更新状态信息
