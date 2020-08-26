@@ -15,6 +15,7 @@ Bee 采用一种基于脚本的数据解析方式，可使用 Lua/SQL 来对主�
 
 需要使用 Docker 来提供交叉编译环境，当前交叉编译工具使用的是 [rust-cross](https://github.com/rust-embedded/cross)。 下面列出比较常用的操作系统的编译命令:
 
-- CentOS(>= 5.0): `./cross-build.sh x86_64-unknown-linux-musl`
 - Unbuntu(> 14.0): `./cross-build.sh x86_64-unknown-linux-gnu`
 - Windows(>= 2008R): `./cross-build.sh x86_64-pc-windows-gnu`
+
+> 暂时不支持 musl 交叉编译，未能解决 openssl-sys 在 musl-gcc 下的库函数与 libssh 不兼容的问题。
