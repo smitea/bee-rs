@@ -15,12 +15,7 @@ use std::error::Error;
 use std::net::SocketAddr;
 use std::str::FromStr;
 use std::time::{Duration, SystemTime};
-use std::{
-    collections::HashMap,
-    io::ErrorKind,
-    path::Path,
-    sync::Arc,
-};
+use std::{collections::HashMap, io::ErrorKind, path::Path, sync::Arc};
 use structopt::StructOpt;
 
 #[cfg(windows)]
@@ -139,10 +134,7 @@ impl ToData for ClientInfo {
 fn start() -> Result<(), Box<dyn Error>> {
     let cli: CLI = CLI::from_args();
     match cli {
-        CLI::Run(config) => {
-            let mut runtime = Runtime::new()?;
-            run(config,&mut runtime)
-        },
+        CLI::Run(config) => run(config),
         CLI::Start(config) => start_service(config),
         CLI::Stop => stop(),
     }
@@ -150,7 +142,6 @@ fn start() -> Result<(), Box<dyn Error>> {
 
 #[cfg(unix)]
 fn start_service(config: Config) -> Result<(), Box<dyn Error>> {
-    setup_logger(&config.log_level)?;
     let pid_path = get_pid_path();
     if let Ok(pid) = std::fs::read_to_string(&pid_path) {
         eprintln!("The {} is started, and PID: {}", HIVE, pid.red());
@@ -175,16 +166,12 @@ fn start_service(config: Config) -> Result<(), Box<dyn Error>> {
         })
         .privileged_action(move || {
             let pid_path = get_pid_path();
-            if let Ok(mut runtime) = Runtime::new() {
-                if let Err(err) = std::fs::write(&pid_path, format!("{}", std::process::id())) {
-                    error!("Failed to write PID file [{:?}] - {}", &pid_path, err);
-                }
-                if let Err(err) = run(config, &mut runtime) {
-                    error!("{}", err);
-                }
-            }else {
-                error!("Failed to new runtime")
-            };
+            if let Err(err) = std::fs::write(&pid_path, format!("{}", std::process::id())) {
+                error!("Failed to write PID file [{:?}] - {}", &pid_path, err);
+            }
+            if let Err(err) = run(config) {
+                error!("{}", err);
+            }
         });
     match daemonize.start() {
         Ok(_) => println!("Success to start of {}", HIVE),
@@ -221,8 +208,6 @@ pub fn run_service(arguments: Vec<std::ffi::OsString>) -> Result<(), Box<dyn Err
         service_control_handler::{self, ServiceControlHandlerResult},
     };
 
-    setup_logger("Debug")?;
-    info!("args: {:?}",arguments);
     let config = {
         let mut log_level = "Info".to_owned();
         let mut ip = "0.0.0.0".to_owned();
@@ -244,7 +229,6 @@ pub fn run_service(arguments: Vec<std::ffi::OsString>) -> Result<(), Box<dyn Err
             port,
         }
     };
-    let mut runtime = Runtime::new()?;
     let (tx, rx) = std::sync::mpsc::channel();
 
     let sin_tx = tx.clone();
@@ -270,7 +254,7 @@ pub fn run_service(arguments: Vec<std::ffi::OsString>) -> Result<(), Box<dyn Err
     })?;
 
     std::thread::spawn(move || {
-        if let Err(err) = run(config, &mut runtime) {
+        if let Err(err) = run(config) {
             error!("{}", err);
             let _ = sin_tx.send((ServiceState::Stopped, 1));
         } else {
@@ -299,9 +283,7 @@ fn stop() -> Result<(), Box<dyn Error>> {
 
     let msg = format!(
         "{} is not start, Please run '{} start' for start of {}",
-        HIVE,
-        HIVE,
-        HIVE,
+        HIVE, HIVE, HIVE,
     )
     .color("red");
     let pid = if let Ok(pid) = std::fs::read_to_string(&path) {
@@ -342,8 +324,11 @@ pub fn replace_env<T: Into<String>>(val: T) -> Result<std::path::PathBuf, String
         .or_else(|error| Err(format!("{}", error)));
 }
 
-fn run(config: Config, runtime: &mut Runtime) -> Result<(), Box<dyn Error>> {
+fn run(config: Config) -> Result<(), Box<dyn Error>> {
+    setup_logger(&config.log_level)?;
     print_headers(&config)?;
+
+    let mut runtime = Runtime::new()?;
     runtime.block_on(async move { start_server(config).await })
 }
 
