@@ -96,6 +96,12 @@ impl Request {
         Ok(())
     }
 
+     /// 发送结束信息
+     pub fn ok(&self) -> Result<()> {
+        self.tx.send(State::Ok)?;
+        Ok(())
+    }
+
     /// 获取参数列表
     #[inline(always)]
     pub fn get_args(&self) -> &Args {
@@ -105,7 +111,6 @@ impl Request {
 
 impl Drop for Request {
     fn drop(&mut self) {
-        let _ = self.tx.send(State::Ok);
         drop(&self.tx);
     }
 }

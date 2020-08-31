@@ -72,23 +72,22 @@ impl crate::Configure for SqliteSession {
     }
 }
 
+#[async_trait]
 impl crate::Connection for SqliteSession {
-    fn new_statement(&self, script: &str, timeout: Duration) -> crate::Result<Statement> {
-        async_std::task::block_on(async {
-            let (request, response) = new_req(Args::new(), timeout);
-            let conn = self.connection.clone();
+    async fn new_statement(&self, script: &str, timeout: Duration) -> crate::Result<Statement> {
+        let (request, response) = new_req(Args::new(), timeout);
+        let conn = self.connection.clone();
 
-            let script = script.to_string();
-            async_std::task::spawn(async move {
-                let req = request;
-                let rs = commit_statement(conn, script, &req);
-                if let Err(err) = rs {
-                    let _ = req.error(err);
-                }
-            })
-            .await;
-            Ok(response)
-        })
+        let script = script.to_string();
+        let _ = smol::spawn(async move {
+            let req = request;
+            if let Err(err) = commit_statement(conn, script, &req) {
+                let _ = req.error(err);
+            }else{
+                let _ = req.ok();
+            }
+        }).detach();
+        Ok(response)
     }
 }
 
@@ -176,61 +175,73 @@ fn get_columns(sql_columns: Vec<Column>) -> Columns {
 }
 
 #[test]
-fn test() {
-    let lua_script = r#"
+fn test_sqlite_sql() {
+    smol::block_on(async {
+        let lua_script = r#"
         SELECT * FROM filesystem() WHERE name NOT LIKE '%tmp%'
-    "#;
-    let conn = crate::new_connection("sqlite:agent:default").unwrap();
-    let statement = conn
-        .new_statement(lua_script, Duration::from_secs(2))
-        .unwrap();
-    let resp = statement.wait().unwrap();
-    let cols = resp.columns();
-    assert_eq!(5, cols.len());
+        "#;
+        let conn = crate::new_connection("sqlite:agent:default").await.unwrap();
+        let statement = conn
+            .new_statement(lua_script, Duration::from_secs(2))
+            .await
+            .unwrap();
+        let resp = statement.wait().unwrap();
+        let cols = resp.columns();
+        assert_eq!(5, cols.len());
 
-    let mut index = 0;
-    for row in resp {
-        let _ = row.unwrap();
-        index += 1;
-    }
-    assert!(index > 0);
+        let mut index = 0;
+        for row in resp {
+            let _ = row.unwrap();
+            index += 1;
+        }
+        assert!(index > 0);
+    });
 }
 
 #[test]
 #[should_panic(expected = "no such table: test")]
 fn test_faild_no_such_table() {
-    let lua_script = r#"
+    smol::block_on(async {
+        let lua_script = r#"
         SELECT * FROM test();
-    "#;
-    let conn = crate::new_connection("sqlite:agent:default").unwrap();
-    let statement = conn
-        .new_statement(lua_script, Duration::from_secs(2))
-        .unwrap();
-    let _ = statement.wait().unwrap();
+        "#;
+        let conn = crate::new_connection("sqlite:agent:default").await.unwrap();
+        let statement = conn
+            .new_statement(lua_script, Duration::from_secs(2))
+            .await
+            .unwrap();
+        let _ = statement.wait().unwrap();
+    });
 }
 
 #[test]
 #[should_panic(expected = "near ")]
 fn test_faild_sql_error() {
-    let lua_script = r#"
+    smol::block_on(async {
+        let lua_script = r#"
         SELEC * FROM test;
-    "#;
-    let conn = crate::new_connection("sqlite:agent:default").unwrap();
-    let statement = conn
-        .new_statement(lua_script, Duration::from_secs(2))
-        .unwrap();
-    let _ = statement.wait().unwrap();
+        "#;
+        let conn = crate::new_connection("sqlite:agent:default").await.unwrap();
+        let statement = conn
+            .new_statement(lua_script, Duration::from_secs(2))
+            .await
+            .unwrap();
+        let _ = statement.wait().unwrap();
+    });
 }
 
 #[test]
 #[should_panic(expected = "no such function")]
 fn test_faild_not_such_func() {
-    let lua_script = r#"
-      SELECT csv(name) FROM filesystem();
-    "#;
-    let conn = crate::new_connection("sqlite:agent:default").unwrap();
-    let statement = conn
-        .new_statement(lua_script, Duration::from_secs(2))
-        .unwrap();
-    let _ = statement.wait().unwrap();
+    smol::block_on(async {
+        let lua_script = r#"
+        SELECT csv(name) FROM filesystem();
+        "#;
+        let conn = crate::new_connection("sqlite:agent:default").await.unwrap();
+        let statement = conn
+            .new_statement(lua_script, Duration::from_secs(2))
+            .await
+            .unwrap();
+        let _ = statement.wait().unwrap();
+    });
 }

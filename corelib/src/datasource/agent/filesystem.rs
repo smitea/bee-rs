@@ -1,8 +1,8 @@
 use crate::{Columns, Error, Promise, Row, ToData};
 
-use async_std::prelude::*;
-use smol::block_on;
 use heim::disk::partitions_physical;
+use smol::block_on;
+use smol::prelude::*;
 use std::ffi::OsStr;
 
 #[derive(Data)]
@@ -53,7 +53,11 @@ fn test() {
     let (req, resp) = crate::new_req(crate::Args::new(), std::time::Duration::from_secs(2));
     {
         let mut promise = req.head::<Filesystem>().unwrap();
-        filesystem(&mut promise).unwrap();
+        if let Err(err) = filesystem(&mut promise) {
+            let _ = req.error(err);
+        } else {
+            let _ = req.ok();
+        }
         drop(req);
     }
 

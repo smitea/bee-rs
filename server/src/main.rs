@@ -396,7 +396,7 @@ async fn process<'a>(
             target: CONNECT,
             "[{}] - connecting to {} ...", req.application, req.url
         );
-        match new_connection(&req.url) {
+        match new_connection(&req.url).await {
             Ok(connection) => {
                 writer_framed
                     .send(Packet::ConnectResp(ConnectionResp::Ok))
@@ -498,7 +498,7 @@ async fn new_statement<'a>(
         // 返回当前所有连接的执行状态
         network_states_resp(state, req).await?
     } else {
-        connection.new_statement(&req.script, Duration::from_secs(req.timeout as u64))?
+        connection.new_statement(&req.script, Duration::from_secs(req.timeout as u64)).await?
     };
     let response = statement.wait()?;
     let columns = response.columns();

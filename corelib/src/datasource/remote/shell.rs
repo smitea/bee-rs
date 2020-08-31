@@ -106,7 +106,11 @@ fn test() {
     let (req, resp) = crate::new_req(crate::Args::new(), std::time::Duration::from_secs(2));
     {
         let mut promise = req.head::<BashRow>().unwrap();
-        shell(session, "echo 'Hello world'".to_owned(), 2, &mut promise).unwrap();
+        if let Err(err) = shell(session, "echo 'Hello world'".to_owned(), 2, &mut promise) {
+            let _ = req.error(err);
+        } else {
+            let _ = req.ok();
+        }
         drop(req);
     }
 
@@ -137,13 +141,16 @@ fn test_timeout() {
     let (req, resp) = crate::new_req(crate::Args::new(), std::time::Duration::from_secs(2));
     {
         let mut promise = req.head::<BashRow>().unwrap();
-        shell(
+        if let Err(err) = shell(
             session,
             "sleep(5),echo 'Hello world'".to_owned(),
             2,
             &mut promise,
-        )
-        .unwrap();
+        ) {
+            let _ = req.error(err);
+        } else {
+            let _ = req.ok();
+        }
         drop(req);
     }
 

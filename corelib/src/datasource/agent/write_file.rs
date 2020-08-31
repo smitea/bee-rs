@@ -1,12 +1,8 @@
 use crate::{datasource::Status, Promise, Result, ToData, ToType};
-use std::{path::PathBuf};
+use std::path::PathBuf;
 
 #[datasource]
-pub fn write_file(
-    path: String,
-    content: String,
-    promise: &mut Promise<Status>,
-) -> Result<()> {
+pub fn write_file(path: String, content: String, promise: &mut Promise<Status>) -> Result<()> {
     let path: PathBuf = path.parse()?;
     let path = if !path.is_absolute() {
         std::env::current_dir()?.join(path)
@@ -19,8 +15,6 @@ pub fn write_file(
     Ok(())
 }
 
-
-
 #[test]
 fn test() {
     use crate::*;
@@ -29,15 +23,16 @@ fn test() {
     let (req, resp) = crate::new_req(crate::Args::new(), std::time::Duration::from_secs(2));
     {
         let mut promise = req.head::<Status>().unwrap();
-        write_file(path.clone(), content.clone(), &mut promise).unwrap();
+        if let Err(err) = write_file(path.clone(), content.clone(), &mut promise) {
+            let _ = req.error(err);
+        } else {
+            let _ = req.ok();
+        }
         drop(req);
     }
 
     let resp = resp.wait().unwrap();
-    assert_eq!(
-        &columns![Boolean: "success"],
-        resp.columns()
-    );
+    assert_eq!(&columns![Boolean: "success"], resp.columns());
 
     let mut index = 0;
     for row in resp {
@@ -47,7 +42,7 @@ fn test() {
         assert!(success);
         index += 1;
     }
-    assert_eq!(content.as_bytes(),std::fs::read(&path).unwrap().as_slice());
+    assert_eq!(content.as_bytes(), std::fs::read(&path).unwrap().as_slice());
     std::fs::remove_file(&path).unwrap();
     assert!(index > 0);
 }

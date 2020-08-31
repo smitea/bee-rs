@@ -1,8 +1,9 @@
-use crate::{value::Bytes, Columns, Promise, Result, Row, ToData, ToType, Error};
+use crate::{value::Bytes, Columns, Error, Promise, Result, Row, ToData, ToType};
 use parking_lot::RwLock;
 use ssh::{Session, SftpFile};
 use std::{
-    alloc::Layout, io::Read, io::Seek, io::SeekFrom, mem::size_of, path::PathBuf, sync::Arc, time::Duration,
+    alloc::Layout, io::Read, io::Seek, io::SeekFrom, mem::size_of, path::PathBuf, sync::Arc,
+    time::Duration,
 };
 
 #[derive(Data)]
@@ -93,7 +94,11 @@ fn test() {
     let (req, resp) = crate::new_req(crate::Args::new(), std::time::Duration::from_secs(2));
     {
         let mut promise = req.head::<FileBytes>().unwrap();
-        read_file(session, path.clone(), 2, 5,10, &mut promise).unwrap();
+        if let Err(err) = read_file(session, path.clone(), 2, 5, 10, &mut promise) {
+            let _ = req.error(err);
+        } else {
+            let _ = req.ok();
+        }
         drop(req);
     }
 

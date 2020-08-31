@@ -52,8 +52,10 @@ pub use datasource::register_ds;
 extern crate log;
 #[macro_use]
 extern crate bee_codegen;
+#[macro_use]
+extern crate async_trait;
 
 /// 创建一个连接，用于执行 SQL
-pub fn new_connection(url: &str) -> Result<Box<dyn Connection>> {
-    connect::new_connection(url)
+pub async fn new_connection(url: &str) -> Result<Box<dyn Connection>> {
+    connect::new_connection(url).await
 }

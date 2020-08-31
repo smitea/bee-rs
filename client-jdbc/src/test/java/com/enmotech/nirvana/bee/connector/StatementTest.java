@@ -60,7 +60,7 @@ public class StatementTest extends ConnectorUrl {
     @Test
     public void testBranch() throws InterruptedException, SQLException {
         final int BRANCH_NUM = 100;
-        final int TASK_NUM = 1000;
+        final int TASK_NUM = 100;
 
         BlockingDeque<Runnable> blockingDeque = new LinkedBlockingDeque<>();
         ThreadPoolExecutor executor = new ThreadPoolExecutor(4, 4, 1000L, TimeUnit.MILLISECONDS, blockingDeque);

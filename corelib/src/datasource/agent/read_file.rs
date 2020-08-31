@@ -80,7 +80,11 @@ fn test() {
     let (req, resp) = crate::new_req(crate::Args::new(), std::time::Duration::from_secs(2));
     {
         let mut promise = req.head::<FileBytes>().unwrap();
-        read_file(path.clone(), 2, 5, &mut promise).unwrap();
+        if let Err(err) = read_file(path.clone(), 2, 5, &mut promise) {
+            let _ = req.error(err);
+        } else {
+            let _ = req.ok();
+        }
         drop(req);
     }
 

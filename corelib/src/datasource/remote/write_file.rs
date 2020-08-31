@@ -1,4 +1,4 @@
-use crate::{datasource::Status, Promise, Result, ToData, ToType, Error};
+use crate::{datasource::Status, Error, Promise, Result, ToData, ToType};
 use parking_lot::RwLock;
 use ssh::Session;
 use std::{io::Write, path::PathBuf, sync::Arc, time::Duration};
@@ -32,15 +32,18 @@ fn test() {
     let (req, resp) = crate::new_req(crate::Args::new(), std::time::Duration::from_secs(2));
     {
         let mut promise = req.head::<Status>().unwrap();
-        write_file(
+        if let Err(err) = write_file(
             session,
             "/tmp".to_string(),
             "test.log".to_owned(),
             "hello world".to_string(),
             10,
             &mut promise,
-        )
-        .unwrap();
+        ) {
+            let _ = req.error(err);
+        } else {
+            let _ = req.ok();
+        }
         drop(req);
     }
 

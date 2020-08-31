@@ -1,4 +1,4 @@
-use crate::{Error, Instance, Result, configure::Configure};
+use crate::{configure::Configure, Error, Instance, Result};
 use heim::units::{time, Time};
 use std::process::{Command, Output};
 use std::time::Duration;
@@ -50,7 +50,7 @@ fn run_command(cmd: &str) -> Result<String> {
 }
 
 /// 注册数据源
-pub fn register_ds<T: Configure>(_: &Instance, connection: &T) -> Result<()> {
+pub async fn register_ds<T: Configure>(_: &Instance, connection: &T) -> Result<()> {
     use crate::register_ds;
 
     connection.register_source(register_ds!(read_file))?;
@@ -67,12 +67,14 @@ pub fn register_ds<T: Configure>(_: &Instance, connection: &T) -> Result<()> {
 }
 
 #[test]
-fn test(){
-    let _ = crate::new_connection("sqlite:agent:default").unwrap();
+fn test() {
+    smol::block_on(async {
+        let _ = crate::new_connection("sqlite:agent:default").await.unwrap();
+    });
 }
 
 #[test]
 #[should_panic(expected = "exit code:")]
-fn test_run_cmd_faild(){
+fn test_run_cmd_faild() {
     run_command("cat /eta/test1").unwrap();
 }

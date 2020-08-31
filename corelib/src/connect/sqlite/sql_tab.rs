@@ -172,7 +172,13 @@ impl SQLTabCursor<'_> {
         let data_source: Arc<Box<dyn DataSource>> = self.ds.clone();
         let (mut request, statement) = new_req_none(args);
         // 执行请求
-        data_source.collect(&mut request)?;
+        let _ = std::thread::spawn(move || {
+            if let Err(err) = data_source.collect(&mut request) {
+                let _ = request.error(err);
+            } else {
+                let _ = request.ok();
+            }
+        });
         let resp = statement.wait()?;
         Ok(resp)
     }

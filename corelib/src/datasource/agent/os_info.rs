@@ -1,6 +1,6 @@
 use crate::{Columns, Promise, Result, Row, ToData};
-use smol::block_on;
 use heim::host::{platform, Platform};
+use smol::block_on;
 
 #[derive(Data)]
 pub struct OSInfo {
@@ -27,7 +27,11 @@ fn test() {
     let (req, resp) = crate::new_req(crate::Args::new(), std::time::Duration::from_secs(2));
     {
         let mut promise = req.head::<OSInfo>().unwrap();
-        os_info(&mut promise).unwrap();
+        if let Err(err) = os_info(&mut promise) {
+            let _ = req.error(err);
+        } else {
+            let _ = req.ok();
+        }
         drop(req);
     }
 

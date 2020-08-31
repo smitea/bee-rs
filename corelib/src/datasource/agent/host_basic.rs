@@ -1,11 +1,11 @@
 use crate::{Columns, Error, Promise, Row, ToData};
 
 use super::{format, run_command};
-use smol::block_on;
 use heim::{
     host::{platform, uptime, Platform},
     memory::{memory, Memory},
 };
+use smol::block_on;
 
 #[cfg(target_os = "windows")]
 const BRAND_CMD: &str = "WMIC CPU Get Name / Format:List 2>nul";
@@ -61,14 +61,17 @@ pub fn host_basic(promise: &mut Promise<HostBasic>) -> Result<(), Error> {
     Ok(())
 }
 
-
 #[test]
 fn test() {
     use crate::*;
     let (req, resp) = crate::new_req(crate::Args::new(), std::time::Duration::from_secs(2));
     {
         let mut promise = req.head::<HostBasic>().unwrap();
-        host_basic(&mut promise).unwrap();
+        if let Err(err) = host_basic(&mut promise) {
+            let _ = req.error(err);
+        } else {
+            let _ = req.ok();
+        }
         drop(req);
     }
 

@@ -63,7 +63,6 @@ impl Statement {
         } else if let State::Err(err) = state {
             return Err(err);
         }
-
         return Err(Error::invalid_type(format!(
             "invalid to wait a columns for response"
         )));

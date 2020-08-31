@@ -16,15 +16,23 @@ fn shell(output: String, _timeout: u32, promise: &mut Promise<BashRow>) -> Resul
 }
 
 #[test]
-fn test(){
+fn test() {
     use crate::*;
     let (req, resp) = crate::new_req(crate::Args::new(), std::time::Duration::from_secs(2));
     {
         let mut promise = req.head::<BashRow>().unwrap();
-        shell(r#"
+        if let Err(err) = shell(
+            r#"
             echo Hello world
             > Hello world
-        "#.to_owned(),10,&mut promise).unwrap();
+            "#.to_owned(),
+            10,
+            &mut promise,
+        ) {
+            let _ = req.error(err);
+        } else {
+            let _ = req.ok();
+        }
         drop(req);
     }
 

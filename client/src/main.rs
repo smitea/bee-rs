@@ -193,7 +193,7 @@ fn get_arg_uri() -> SocketAddr {
         .get(1)
         .map(|val|val.to_string())
         .map(|val| {
-            if val.is_empty(){
+            if val.trim().is_empty(){
                 LOCAL_ADDR.to_owned()
             }else{
                 val

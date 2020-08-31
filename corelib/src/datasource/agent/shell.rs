@@ -49,7 +49,11 @@ fn test() {
     let (req, resp) = crate::new_req(crate::Args::new(), std::time::Duration::from_secs(2));
     {
         let mut promise = req.head::<BashRow>().unwrap();
-        shell("echo 'Hello world'".to_string(), 2, &mut promise).unwrap();
+        if let Err(err) = shell("echo 'Hello world'".to_string(), 2, &mut promise) {
+            let _ = req.error(err);
+        } else {
+            let _ = req.ok();
+        }
         drop(req);
     }
 
@@ -74,13 +78,17 @@ fn test() {
 
 #[test]
 #[should_panic(expected = "timed out")]
-fn test_timeout() {
+fn test_shell_timeout() {
     use crate::*;
     let (req, resp) = crate::new_req(crate::Args::new(), std::time::Duration::from_secs(2));
     {
+        println!("new shell");
         let mut promise = req.head::<BashRow>().unwrap();
-        shell("sleep 10;echo 'Hello world'".to_string(), 2, &mut promise).unwrap();
-        drop(req);
+        if let Err(err) = shell("sleep 10;echo 'Hello world'".to_string(), 2, &mut promise) {
+            let _ = req.error(err);
+        } else {
+            let _ = req.ok();
+        }
     }
 
     let resp = resp.wait().unwrap();
@@ -88,4 +96,7 @@ fn test_timeout() {
         &columns![String: "line",Integer: "line_num"],
         resp.columns()
     );
+    for row in resp {
+        let _ = row.unwrap();
+    }
 }

@@ -1,7 +1,7 @@
-use crate::{datasource::Status, Promise, Result, ToData, ToType, Error};
-use ssh::Session;
+use crate::{datasource::Status, Error, Promise, Result, ToData, ToType};
 use parking_lot::RwLock;
-use std::{time::Duration, sync::{Arc}};
+use ssh::Session;
+use std::{sync::Arc, time::Duration};
 
 #[datasource]
 pub fn mkdir(
@@ -29,14 +29,17 @@ fn test() {
     let (req, resp) = crate::new_req(crate::Args::new(), std::time::Duration::from_secs(2));
     {
         let mut promise = req.head::<Status>().unwrap();
-        mkdir(
+        if let Err(err) = mkdir(
             session,
             "/tmp".to_owned(),
             "bethune".to_owned(),
             10,
             &mut promise,
-        )
-        .unwrap();
+        ) {
+            let _ = req.error(err);
+        } else {
+            let _ = req.ok();
+        }
         drop(req);
     }
 

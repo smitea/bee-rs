@@ -54,7 +54,7 @@ pub fn new_session(instance: &Instance) -> Result<Arc<RwLock<Session>>> {
     return Ok(Arc::new(RwLock::new(sess)));
 }
 
-pub fn register_ds<T: Configure>(instance: &Instance, connection: &T) -> Result<()> {
+pub async fn register_ds<T: Configure>(instance: &Instance, connection: &T) -> Result<()> {
     use crate::register_ds;
 
     let session = new_session(instance)?;

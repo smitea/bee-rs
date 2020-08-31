@@ -1,6 +1,6 @@
 use crate::{Columns, Promise, Result, Row, ToData};
-use smol::block_on;
 use heim::memory::{swap, Swap};
+use smol::block_on;
 
 #[derive(Data)]
 pub struct SWAPUsage {
@@ -23,14 +23,17 @@ pub fn swap_usage(promise: &mut Promise<SWAPUsage>) -> Result<()> {
     Ok(())
 }
 
-
 #[test]
 fn test() {
     use crate::*;
     let (req, resp) = crate::new_req(crate::Args::new(), std::time::Duration::from_secs(2));
     {
         let mut promise = req.head::<SWAPUsage>().unwrap();
-        swap_usage(&mut promise).unwrap();
+        if let Err(err) = swap_usage(&mut promise) {
+            let _ = req.error(err);
+        } else {
+            let _ = req.ok();
+        }
         drop(req);
     }
 
