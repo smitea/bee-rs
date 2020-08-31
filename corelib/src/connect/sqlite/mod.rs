@@ -7,7 +7,7 @@ use crate::{new_req, Args, Columns, DataSource, DataType, Request, State, Statem
 use convert::INVALIDCOLUMNCOUNT;
 use parking_lot::ReentrantMutex;
 use rusqlite::vtab::eponymous_only_module;
-use rusqlite::{Column, Connection, Result, Row, NO_PARAMS};
+use rusqlite::{Column, Connection, OpenFlags, Result, Row, NO_PARAMS};
 use sql_tab::SQLTab;
 use std::panic::UnwindSafe;
 use std::{sync::Arc, time::Duration};
@@ -21,8 +21,12 @@ impl SqliteSession {
     /// 创建一个 Sqlite 连接 (单线程模式)
     pub fn new() -> Result<Self> {
         Ok(Self {
-            connection: Arc::new(ReentrantMutex::new(Connection::open_in_memory()?)),
+            connection: Arc::new(ReentrantMutex::new(Self::new_connection()?)),
         })
+    }
+
+    fn new_connection() -> Result<Connection> {
+        Connection::open_in_memory_with_flags(OpenFlags::default())
     }
 }
 
@@ -70,16 +74,21 @@ impl crate::Configure for SqliteSession {
 
 impl crate::Connection for SqliteSession {
     fn new_statement(&self, script: &str, timeout: Duration) -> crate::Result<Statement> {
-        let (request, response) = new_req(Args::new(), timeout);
-        let conn = self.connection.clone();
-        let script = script.to_string();
-        let req = request;
-        let rs = commit_statement(conn, script, &req);
-        if let Err(err) = rs {
-            let _ = req.error(err);
-        }
+        async_std::task::block_on(async {
+            let (request, response) = new_req(Args::new(), timeout);
+            let conn = self.connection.clone();
 
-        Ok(response)
+            let script = script.to_string();
+            async_std::task::spawn(async move {
+                let req = request;
+                let rs = commit_statement(conn, script, &req);
+                if let Err(err) = rs {
+                    let _ = req.error(err);
+                }
+            })
+            .await;
+            Ok(response)
+        })
     }
 }
 

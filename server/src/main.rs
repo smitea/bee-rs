@@ -417,6 +417,7 @@ async fn process<'a>(
         )));
     };
 
+    tokio::pin!(connection);
     // 记录连接信息
     {
         let mut state = state.lock().await;

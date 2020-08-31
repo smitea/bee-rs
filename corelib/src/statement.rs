@@ -32,6 +32,13 @@ impl Response {
     }
 }
 
+impl Drop for Response {
+    fn drop(&mut self) {
+        drop(&self.tx);
+        drop(&self.columns);
+    }
+}
+
 impl Statement {
     /// 创建结果集，通过最大执行时间 `timeout` 和 数据流接收器 `tx`
     #[inline(always)]
@@ -166,15 +173,15 @@ fn test_without_timeout() {
         let arg0: f64 = args.get(1).unwrap();
         assert_eq!(10.02, arg0);
         std::thread::sleep(Duration::from_millis(100));
-        if let Err(err) = req.commit(vec![("age".to_owned(), crate::Value::from(10))]){
+        if let Err(err) = req.commit(vec![("age".to_owned(), crate::Value::from(10))]) {
             req.error(err).unwrap();
         }
     });
 
-    let resp  = statement.wait().unwrap();
-    assert_eq!(&crate::columns![String: "name"],resp.columns());
+    let resp = statement.wait().unwrap();
+    assert_eq!(&crate::columns![String: "name"], resp.columns());
 
-    for row in resp{
+    for row in resp {
         let _ = row.unwrap();
     }
 }

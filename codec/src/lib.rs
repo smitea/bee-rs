@@ -34,11 +34,11 @@ pub(crate) const INVALID_DATA_CODE: i32 = code!(INVALID_BASE_CODE, 0x01);
 #[repr(u8)]
 enum TypeSize {
     NIL = 0x00,
-    STRING,
-    INTEGER,
-    NUMBER,
-    BOOLEAN,
-    BYTES,
+    STRING = 0x01,
+    INTEGER = 0x02,
+    NUMBER = 0x03,
+    BOOLEAN = 0x04,
+    BYTES = 0x05,
 }
 
 impl From<DataType> for TypeSize {

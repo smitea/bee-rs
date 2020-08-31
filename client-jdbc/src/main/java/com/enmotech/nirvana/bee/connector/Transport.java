@@ -80,7 +80,7 @@ public class Transport implements Closeable {
     private void configBootstrap(Bootstrap bootstrap, EventLoopGroup group) {
         bootstrap.group(group).channel(NioSocketChannel.class).option(ChannelOption.TCP_NODELAY, true)
                 .option(ChannelOption.SO_KEEPALIVE, true).option(ChannelOption.SO_RCVBUF, Integer.MAX_VALUE)
-                .option(ChannelOption.SO_TIMEOUT, soTimeout)
+                .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, soTimeout)
                 .option(ChannelOption.AUTO_READ, true)
                 .option(ChannelOption.SO_SNDBUF, Integer.MAX_VALUE)
                 .option(ChannelOption.SO_RCVBUF, Integer.MAX_VALUE)
@@ -88,7 +88,7 @@ public class Transport implements Closeable {
                         new AdaptiveRecvByteBufAllocator(Packet.LENGTH, Packet.LENGTH, Integer.MAX_VALUE))
                 .handler(new ChannelInitializer<SocketChannel>() {
                     @Override
-                    public void initChannel(SocketChannel socketChannel) throws Exception {
+                    public void initChannel(SocketChannel socketChannel) {
                         ChannelPipeline cp = socketChannel.pipeline();
                         cp.addLast(new PacketDecoder());
                         cp.addLast(new PacketEncoder());
@@ -119,6 +119,7 @@ public class Transport implements Closeable {
                                                 if (handler.isMulti() && !handler.isEnd()) {
                                                     packetQueue.offer(handler);
                                                 }
+                                                buf.release();
                                             } else {
                                                 // 重置读取位
                                                 buf.resetReaderIndex();
@@ -197,9 +198,13 @@ public class Transport implements Closeable {
     protected <T extends Decoder> void writePacket(Encoder encoder) throws Exception {
         if (!isClosed.get()) {
             ByteBuf data = encoder.encode();
-            Packet packet = new Packet(encoder.type(), data);
-            writeChannel.write(packet);
-            writeChannel.flush();
+            try {
+                Packet packet = new Packet(encoder.type(), data);
+                writeChannel.write(packet);
+                writeChannel.flush();
+            } finally {
+                data.release();
+            }
         } else {
             Throwable throwable = this.throwable.get();
             if (throwable != null) {

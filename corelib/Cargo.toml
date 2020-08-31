@@ -22,7 +22,7 @@ num_cpus            = {optional = true, version = "*"}
 libc                = {optional = true, version = "0.2"}
 
 rlua                = {optional = true, version = "*"}
-rusqlite            = {optional = true, git = "https://github.com/rusqlite/rusqlite.git", features = ["blob","vtab","functions","column_decltype","bundled"]}
+rusqlite            = {optional = true, version = "0.24.0", features = ["blob","vtab","functions","column_decltype","bundled"]}
 
 [target.'cfg(unix)'.dependencies]
 ssh                 = {optional = true, git = "https://github.com/sMitea/ssh.git"}

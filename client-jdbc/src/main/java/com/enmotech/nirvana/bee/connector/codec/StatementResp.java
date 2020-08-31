@@ -171,7 +171,11 @@ public class StatementResp implements Decoder, Response {
                     throw new TimeoutException();
                 }
             }
-            return !abort || !rowQueue.isEmpty();
+            abort = this.hasAbort.get();
+            if (abort){
+                return !rowQueue.isEmpty();
+            }
+            return true;
         } catch (Exception e) {
             String msg = e.getMessage();
             if (msg == null) {
@@ -197,6 +201,7 @@ public class StatementResp implements Decoder, Response {
             int dataLen = data.readByte();
             ByteBuf bytes = data.readBytes(dataLen);
             String name = bytes.toString(Charset.defaultCharset());
+            bytes.release();
             int type = data.readByte();
             header[i] = new ColumnInfo(name, DataType.valueOf(type));
         }

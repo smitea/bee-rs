@@ -25,7 +25,7 @@ impl<'a> rlua::ToLua<'a> for Value {
         let val = match self {
             Value::Boolean(val) => rlua::Value::Boolean(val),
             Value::String(val) => rlua::Value::String(lua.create_string(&val)?),
-            Value::Integer(val) => rlua::Value::Number(val as f64),
+            Value::Integer(val) => rlua::Value::Integer(val),
             Value::Number(val) => rlua::Value::Number(val),
             Value::Bytes(val) => {
                 let data = lua.create_userdata(BytesWrapper(val.len(), val))?;

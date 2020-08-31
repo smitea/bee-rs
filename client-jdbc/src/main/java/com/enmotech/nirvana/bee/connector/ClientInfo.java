@@ -86,6 +86,9 @@ public class ClientInfo {
 
     public int getConnectionTimeout() {
         String connectionTimeout = properties.getProperty(CONNECTION_TIMEOUT);
+        if (connectionTimeout == null) {
+            connectionTimeout = "10";
+        }
         return Integer.parseInt(connectionTimeout);
     }
 

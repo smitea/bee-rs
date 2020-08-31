@@ -23,6 +23,8 @@ use tokio::net::tcp::{OwnedReadHalf, OwnedWriteHalf};
 use tokio::net::TcpStream;
 use tokio::stream::StreamExt;
 
+const LOCAL_ADDR: &str = "127.0.0.1:6142";
+
 #[cfg(unix)]
 fn highlight_dodo(s: &str) -> String {
     s.to_string()
@@ -187,12 +189,16 @@ async fn new_connection(
 
 fn get_arg_uri() -> SocketAddr {
     let args: Vec<String> = env::args().collect();
-    let url: &str = args
+    let url: String = args
         .get(1)
-        .expect("must be a connection url, forexample: bee sqlite:agent:default");
-    if url.trim().is_empty() {
-        panic!("must be a connection url, forexample: bee sqlite:agent:default");
-    }
+        .map(|val|val.to_string())
+        .map(|val| {
+            if val.is_empty(){
+                LOCAL_ADDR.to_owned()
+            }else{
+                val
+            }
+        }).unwrap_or(LOCAL_ADDR.to_owned());
     return url.parse().unwrap();
 }
 

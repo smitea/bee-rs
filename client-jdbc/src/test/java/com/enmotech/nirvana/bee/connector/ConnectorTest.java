@@ -12,25 +12,25 @@ import java.util.Properties;
 public class ConnectorTest extends ConnectorUrl {
 
     private ClientInfo createClientInfoForConnectionRefused() {
-        ClientInfo info = createClientInfo();
+        ClientInfo info = createClientRemoteInfo();
         info.getProperties().setProperty(ClientInfo.CONNECTION_PORT, "21");
         return info;
     }
 
     private ClientInfo createClientInfoForConnectionTimeout() {
-        ClientInfo info = createClientInfo();
+        ClientInfo info = createClientRemoteInfo();
         info.getProperties().setProperty(ClientInfo.CONNECTION_HOST, "127.0.0.2");
         return info;
     }
 
     private ClientInfo createClientInfoForConnectionAuthUserFailed() {
-        ClientInfo info = createClientInfo();
+        ClientInfo info = createClientRemoteInfo();
         info.getProperties().setProperty(ClientInfo.USERNAME, "oracle1");
         return info;
     }
 
     private ClientInfo createClientInfoForConnectionAuthPWDFailed() {
-        ClientInfo info = createClientInfo();
+        ClientInfo info = createClientRemoteInfo();
         info.getProperties().setProperty(ClientInfo.PASSWORD, "admincs");
         return info;
     }
