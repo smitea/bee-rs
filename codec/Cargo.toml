@@ -7,7 +7,7 @@ edition = "2018"
 [dependencies]
 bee-core            = {version = "0.1.0", path = "../corelib"}
 bee-codegen         = {version = "0.1.0", path = "../codegen"}
-bytes               = {version = "0.5.0"}
+bytes               = {version = "*"}
 tokio-util          = {version = "*", features = ["codec"]}
 log                 = {version = "*"}
 

@@ -7,7 +7,7 @@ use std::result::Result;
 use tokio::net::tcp::{OwnedReadHalf, OwnedWriteHalf};
 use tokio::net::TcpListener;
 use tokio::stream::StreamExt;
-use tokio::{runtime::Runtime, sync::Mutex};
+use tokio::{runtime::Runtime,sync::RwLock};
 
 use futures;
 use futures::SinkExt;
@@ -32,7 +32,7 @@ const CONNECT: &str = "connection";
 const REQUEST: &str = "statements";
 const QUERY_NETWORK_STATES: &str = "show network_states";
 
-type State = Arc<Mutex<HashMap<SocketAddr, ClientInfo>>>;
+type State = Arc<RwLock<HashMap<SocketAddr, ClientInfo>>>;
 
 fn setup_logger(level: &str) -> Result<(), fern::InitError> {
     let current_dir = std::env::current_exe()?;
@@ -358,13 +358,13 @@ fn print_headers(config: &Config) -> Result<(), Box<dyn Error>> {
 async fn start_server(config: Config) -> Result<(), Box<dyn Error>> {
     let addr = format!("{}:{}", config.ip, config.port);
     let mut listener = TcpListener::bind(&addr).await?;
-    let clients: State = Arc::new(Mutex::new(HashMap::new()));
+    let clients: State = Arc::new(RwLock::new(HashMap::new()));
     loop {
         let (stream, addr) = listener.accept().await?;
         stream.set_nodelay(true)?;
-        stream.set_keepalive(Some(Duration::from_secs(10)))?;
-        stream.set_recv_buffer_size(1024 * 10)?;
-        stream.set_send_buffer_size(1024 * 10)?;
+        // stream.set_keepalive(Some(Duration::from_secs(10)))?;
+        // stream.set_recv_buffer_size(1024 * 10)?;
+        // stream.set_send_buffer_size(1024 * 10)?;
 
         let state = clients.clone();
         tokio::spawn(async move {
@@ -377,7 +377,7 @@ async fn start_server(config: Config) -> Result<(), Box<dyn Error>> {
             }
             {
                 // 移除连接信息
-                let mut state = state.lock().await;
+                let mut state = state.write().await;
                 state.remove(&addr);
             }
         });
@@ -420,7 +420,7 @@ async fn process<'a>(
     tokio::pin!(connection);
     // 记录连接信息
     {
-        let mut state = state.lock().await;
+        let mut state = state.write().await;
         state.insert(
             addr,
             ClientInfo {
@@ -436,7 +436,7 @@ async fn process<'a>(
         {
             if req.script != QUERY_NETWORK_STATES {
                 // 更新状态信息
-                let mut state = state.lock().await;
+                let mut state = state.write().await;
                 state.entry(addr).and_modify(|c| {
                     c.state = ClientState::Process(req.clone());
                 });
@@ -470,7 +470,7 @@ async fn process<'a>(
         {
             if req.script != QUERY_NETWORK_STATES {
                 // 更新状态信息
-                let mut state = state.lock().await;
+                let mut state = state.write().await;
                 state.entry(addr).and_modify(|c| {
                     c.state = ClientState::Idle(req.clone(), used);
                 });
@@ -546,7 +546,7 @@ async fn network_states_resp(
     let (request, response) = new_req(Args::new(), Duration::from_secs(req.timeout as u64));
     let mut commit: Promise<ClientInfo> = request.head()?;
     {
-        let lock = state.lock().await;
+        let lock = state.read().await;
         for (_, value) in lock.iter() {
             commit.commit(value.clone())?;
         }

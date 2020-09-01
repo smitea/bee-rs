@@ -4,7 +4,7 @@ use std::{
     time::Duration,
 };
 
-const CHANNEL_SIZE: usize = 1024;
+const CHANNEL_SIZE: usize = 2;
 
 /// 请求执行后的结果集
 pub struct Statement {

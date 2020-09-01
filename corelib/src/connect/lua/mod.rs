@@ -2,7 +2,7 @@ use crate::{
     new_req, new_req_none, Args, Configure, Connection, DataSource, Error, Request, Result, Value,
 };
 use parking_lot::RwLock;
-use rlua::{Context, Lua};
+use rlua::{Context, Lua, StdLib};
 use std::{collections::HashMap, sync::Arc, time::Duration};
 
 type CallFunc = dyn 'static + Send + Sync + Fn(&Args) -> Result<Value>;
@@ -67,7 +67,7 @@ impl Connection for LuaSession {
         let _ = async_std::task::spawn(async move {
             if let Err(err) = run_lua_script(&mut request, script, ds_list, func_list) {
                 let _ = request.error(err);
-            }else{
+            } else {
                 let _ = request.ok();
             }
             drop(request);
@@ -82,14 +82,14 @@ fn run_lua_script(
     ds_list: Arc<RwLock<HashMap<String, Arc<Box<dyn DataSource>>>>>,
     func_list: Arc<RwLock<HashMap<String, Arc<Box<CallFunc>>>>>,
 ) -> Result<()> {
-    let lua = Lua::new();
+    let lua =
+        Lua::new_with(StdLib::BASE | StdLib::STRING | StdLib::UTF8 | StdLib::MATH | StdLib::TABLE);
     let req = request.clone();
     lua.context(move |mut lua_context| {
         let script = script.clone();
         register_context(req, &mut lua_context, ds_list.clone(), func_list.clone())?;
         lua_context.load(&script).exec()
     })?;
-
     return Ok(());
 }
 
@@ -114,7 +114,7 @@ fn register_context(
             let _ = std::thread::spawn(move || {
                 if let Err(err) = ds.collect(&mut request) {
                     let _ = request.error(err);
-                }else{
+                } else {
                     let _ = request.ok();
                 }
             });
