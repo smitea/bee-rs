@@ -40,11 +40,3 @@ lua         =   ["rlua"]
 
 [dev-dependencies]
 env_logger = "*"
-
-[[example]]
-name = "lua"
-path = "example/run_lua.rs"
-
-[[example]]
-name = "sqlite"
-path = "example/run_sqlite.rs"

@@ -61,7 +61,7 @@ public class StatementTest extends ConnectorUrl {
 
     @Test
     public void testBranch() throws InterruptedException, SQLException {
-        final int BRANCH_NUM = 200;
+        final int BRANCH_NUM = 1000;
         final int TASK_NUM = 400;
 
         BlockingDeque<Runnable> blockingDeque = new LinkedBlockingDeque<>();
@@ -99,12 +99,12 @@ public class StatementTest extends ConnectorUrl {
                                     long used = resultSet.getLong("used_bytes");
                                     long avail = resultSet.getLong("free_bytes");
 
-                                    System.out.println("name:" + filesystem);
-                                    System.out.println("total:" + total);
-                                    System.out.println("used:" + used);
-                                    System.out.println("avail:" + avail);
-
-                                    System.out.println();
+//                                    System.out.println("name:" + filesystem);
+//                                    System.out.println("total:" + total);
+//                                    System.out.println("used:" + used);
+//                                    System.out.println("avail:" + avail);
+//
+//                                    System.out.println();
                                 }
                             } catch (Exception e) {
                                 e.printStackTrace();

@@ -109,12 +109,6 @@ impl Request {
     }
 }
 
-impl Drop for Request {
-    fn drop(&mut self) {
-        drop(&self.tx);
-    }
-}
-
 impl<'a, T> Promise<'a, T>
 where
     T: ToData,

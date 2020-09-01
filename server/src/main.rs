@@ -3,11 +3,12 @@ use bee_core::new_connection;
 use bee_core::{columns, new_req, row, Args, Connection, Promise, Statement, ToData};
 use colored::*;
 use log::{debug, error, info};
+use parking_lot::RwLock;
 use std::result::Result;
 use tokio::net::tcp::{OwnedReadHalf, OwnedWriteHalf};
 use tokio::net::TcpListener;
+use tokio::runtime::Runtime;
 use tokio::stream::StreamExt;
-use tokio::{runtime::Runtime,sync::RwLock};
 
 use futures;
 use futures::SinkExt;
@@ -83,6 +84,7 @@ struct Config {
 
 #[derive(Clone)]
 struct ClientInfo {
+    id: usize,
     addr: SocketAddr,
     connect: ConnectionReq,
     state: ClientState,
@@ -97,10 +99,11 @@ enum ClientState {
 
 impl ToData for ClientInfo {
     fn columns() -> bee_core::Columns {
-        columns![String: "addr",String: "application", String: "url", Integer: "sid", String: "script",Number: "used(s)", String: "status"]
+        columns![ Integer: "id" ,String: "addr",String: "application", String: "url", Integer: "sid", String: "script",Number: "used(s)", String: "status"]
     }
     fn to_row(self) -> bee_core::Row {
         let mut row = row![
+            self.id as u32,
             self.addr.to_string(),
             self.connect.application,
             self.connect.url
@@ -377,7 +380,7 @@ async fn start_server(config: Config) -> Result<(), Box<dyn Error>> {
             }
             {
                 // 移除连接信息
-                let mut state = state.write().await;
+                let mut state = state.write();
                 state.remove(&addr);
             }
         });
@@ -417,13 +420,14 @@ async fn process<'a>(
         )));
     };
 
-    tokio::pin!(connection);
     // 记录连接信息
     {
-        let mut state = state.write().await;
-        state.insert(
+        let mut lock = state.write();
+        let id = lock.values().len();
+        lock.insert(
             addr,
             ClientInfo {
+                id,
                 addr,
                 connect: req.clone(),
                 state: ClientState::New,
@@ -436,7 +440,7 @@ async fn process<'a>(
         {
             if req.script != QUERY_NETWORK_STATES {
                 // 更新状态信息
-                let mut state = state.write().await;
+                let mut state = state.write();
                 state.entry(addr).and_modify(|c| {
                     c.state = ClientState::Process(req.clone());
                 });
@@ -470,7 +474,7 @@ async fn process<'a>(
         {
             if req.script != QUERY_NETWORK_STATES {
                 // 更新状态信息
-                let mut state = state.write().await;
+                let mut state = state.write();
                 state.entry(addr).and_modify(|c| {
                     c.state = ClientState::Idle(req.clone(), used);
                 });
@@ -546,7 +550,7 @@ async fn network_states_resp(
     let (request, response) = new_req(Args::new(), Duration::from_secs(req.timeout as u64));
     let mut commit: Promise<ClientInfo> = request.head()?;
     {
-        let lock = state.read().await;
+        let lock = state.read();
         for (_, value) in lock.iter() {
             commit.commit(value.clone())?;
         }
