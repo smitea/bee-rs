@@ -1,13 +1,13 @@
 use crate::state::ToData;
 use crate::{Args, Columns, Error, Result, Row, State, Value};
-use std::sync::mpsc::SyncSender;
+use std::sync::mpsc::Sender;
 
 /// 请求实例，用于异步发送数据流
 #[derive(Clone)]
 pub struct Request {
     args: Args,
     has_columns: bool,
-    tx: SyncSender<State>,
+    tx: Sender<State>,
 }
 
 /// Promise 实例，用于提交 T 类型数据
@@ -19,7 +19,7 @@ pub struct Promise<'a, T> {
 /// 数据行提交器，用于发送数据信息
 pub struct Committer<'a> {
     args: &'a Args,
-    tx: &'a SyncSender<State>,
+    tx: &'a Sender<State>,
     columns: Columns,
 }
 
@@ -42,7 +42,7 @@ impl<'a> Committer<'a> {
 
 impl Request {
     /// 创建一个请求实例，需要传递一个参数列表和一个发送管道
-    pub fn new(args: Args, tx: SyncSender<State>) -> Self {
+    pub fn new(args: Args, tx: Sender<State>) -> Self {
         Self {
             args,
             tx,

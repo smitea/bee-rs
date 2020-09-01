@@ -64,8 +64,11 @@ impl Connection for LuaSession {
         let ds_list = self.ds_list.clone();
         let func_list = self.func_list.clone();
 
+        let lua = Lua::new_with(
+            StdLib::BASE | StdLib::STRING | StdLib::UTF8 | StdLib::MATH | StdLib::TABLE,
+        );
         let _ = async_std::task::spawn(async move {
-            if let Err(err) = run_lua_script(&mut request, script, ds_list, func_list) {
+            if let Err(err) = run_lua_script(lua,&mut request, script, ds_list, func_list) {
                 let _ = request.error(err);
             } else {
                 let _ = request.ok();
@@ -77,19 +80,19 @@ impl Connection for LuaSession {
 }
 
 fn run_lua_script(
+    lua: Lua,
     request: &mut Request,
     script: String,
     ds_list: Arc<RwLock<HashMap<String, Arc<Box<dyn DataSource>>>>>,
     func_list: Arc<RwLock<HashMap<String, Arc<Box<CallFunc>>>>>,
 ) -> Result<()> {
-    let lua =
-        Lua::new_with(StdLib::BASE | StdLib::STRING | StdLib::UTF8 | StdLib::MATH | StdLib::TABLE);
     let req = request.clone();
     lua.context(move |mut lua_context| {
         let script = script.clone();
         register_context(req, &mut lua_context, ds_list.clone(), func_list.clone())?;
         lua_context.load(&script).exec()
     })?;
+    drop(lua);
     return Ok(());
 }
 

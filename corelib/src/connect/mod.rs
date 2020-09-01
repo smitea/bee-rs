@@ -9,7 +9,7 @@ mod sqlite;
 
 /// 连接器
 #[async_trait]
-pub trait Connection: Send + Sync {
+pub trait Connection : Send + Sync{
     /// 创建结果集
     async fn new_statement(&self, script: &str, timeout: Duration) -> Result<Statement>;
 }

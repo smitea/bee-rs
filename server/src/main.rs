@@ -1,9 +1,8 @@
 use bee_codec::*;
 use bee_core::new_connection;
-use bee_core::{columns, new_req, row, Args, Connection, Promise, Statement, ToData};
+use bee_core::Connection;
 use colored::*;
 use log::{debug, error, info};
-use parking_lot::RwLock;
 use std::result::Result;
 use tokio::net::tcp::{OwnedReadHalf, OwnedWriteHalf};
 use tokio::net::TcpListener;
@@ -16,7 +15,7 @@ use std::error::Error;
 use std::net::SocketAddr;
 use std::str::FromStr;
 use std::time::{Duration, SystemTime};
-use std::{collections::HashMap, io::ErrorKind, path::Path, sync::Arc};
+use std::{io::ErrorKind, path::Path};
 use structopt::StructOpt;
 
 #[cfg(windows)]
@@ -31,9 +30,6 @@ const PKG_VERSION: &str = env!("CARGO_PKG_VERSION");
 const HIVE: &str = PKG_NAME;
 const CONNECT: &str = "connection";
 const REQUEST: &str = "statements";
-const QUERY_NETWORK_STATES: &str = "show network_states";
-
-type State = Arc<RwLock<HashMap<SocketAddr, ClientInfo>>>;
 
 fn setup_logger(level: &str) -> Result<(), fern::InitError> {
     let current_dir = std::env::current_exe()?;
@@ -80,57 +76,6 @@ struct Config {
     port: u16,
     #[structopt(long = "log_level", default_value = "Info")]
     log_level: String,
-}
-
-#[derive(Clone)]
-struct ClientInfo {
-    id: usize,
-    addr: SocketAddr,
-    connect: ConnectionReq,
-    state: ClientState,
-}
-
-#[derive(Clone)]
-enum ClientState {
-    Idle(StatementReq, f64),
-    Process(StatementReq),
-    New,
-}
-
-impl ToData for ClientInfo {
-    fn columns() -> bee_core::Columns {
-        columns![ Integer: "id" ,String: "addr",String: "application", String: "url", Integer: "sid", String: "script",Number: "used(s)", String: "status"]
-    }
-    fn to_row(self) -> bee_core::Row {
-        let mut row = row![
-            self.id as u32,
-            self.addr.to_string(),
-            self.connect.application,
-            self.connect.url
-        ];
-
-        match self.state {
-            ClientState::Idle(req, used) => {
-                row.push(req.id);
-                row.push(req.script);
-                row.push(used);
-                row.push("idle");
-            }
-            ClientState::Process(req) => {
-                row.push(req.id);
-                row.push(req.script);
-                row.push(());
-                row.push("process");
-            }
-            ClientState::New => {
-                row.push(());
-                row.push("".to_string());
-                row.push(());
-                row.push("new");
-            }
-        }
-        row
-    }
 }
 
 #[cfg(unix)]
@@ -361,34 +306,28 @@ fn print_headers(config: &Config) -> Result<(), Box<dyn Error>> {
 async fn start_server(config: Config) -> Result<(), Box<dyn Error>> {
     let addr = format!("{}:{}", config.ip, config.port);
     let mut listener = TcpListener::bind(&addr).await?;
-    let clients: State = Arc::new(RwLock::new(HashMap::new()));
     loop {
         let (stream, addr) = listener.accept().await?;
         stream.set_nodelay(true)?;
+        stream.set_keepalive(None)?;
+        stream.set_ttl(1024)?;
         // stream.set_keepalive(Some(Duration::from_secs(10)))?;
         // stream.set_recv_buffer_size(1024 * 10)?;
         // stream.set_send_buffer_size(1024 * 10)?;
 
-        let state = clients.clone();
         tokio::spawn(async move {
             info!(target: CONNECT, "{} - connected", addr);
             let (reader, writer) = stream.into_split();
             let reader_framed = FramedRead::new(reader, PacketCodec);
             let writer_framed = FramedWrite::new(writer, PacketCodec);
-            if let Err(e) = process(state.clone(), reader_framed, writer_framed, addr).await {
+            if let Err(e) = process(reader_framed, writer_framed, addr).await {
                 info!("an error occurred; error = {:?}", e);
-            }
-            {
-                // 移除连接信息
-                let mut state = state.write();
-                state.remove(&addr);
             }
         });
     }
 }
 
 async fn process<'a>(
-    state: State,
     mut reader_framed: FramedRead<OwnedReadHalf, PacketCodec>,
     mut writer_framed: FramedWrite<OwnedWriteHalf, PacketCodec>,
     addr: SocketAddr,
@@ -419,37 +358,20 @@ async fn process<'a>(
             format!("{} - doesn't connection", addr),
         )));
     };
-
-    // 记录连接信息
-    {
-        let mut lock = state.write();
-        let id = lock.values().len();
-        lock.insert(
-            addr,
-            ClientInfo {
-                id,
-                addr,
-                connect: req.clone(),
-                state: ClientState::New,
-            },
-        );
-    }
     let app = req.application;
     info!(target: CONNECT, "[{}] - connected.", app);
     while let Some(Ok(Packet::StatementReq(req))) = reader_framed.next().await {
-        {
-            if req.script != QUERY_NETWORK_STATES {
-                // 更新状态信息
-                let mut state = state.write();
-                state.entry(addr).and_modify(|c| {
-                    c.state = ClientState::Process(req.clone());
-                });
-            }
-        }
         let now = SystemTime::now();
-        match new_statement(&connection, state.clone(), &app, &req, &mut writer_framed).await {
+        match new_statement(&connection, &app, &req, &mut writer_framed).await {
             Ok(_) => {
-                info!(target: REQUEST, "[{}-{}] is ok", app, req.id);
+                let used = now.elapsed()?;
+                info!(
+                    target: REQUEST,
+                    "[{}-{}] used {:?} s",
+                    app,
+                    req.id,
+                    used.as_secs_f32()
+                );
                 // 采集结束
                 writer_framed
                     .send(Packet::StatementResp(StatementResp::new(
@@ -459,7 +381,15 @@ async fn process<'a>(
                     .await?;
             }
             Err(err) => {
-                error!(target: REQUEST, "[{}-{}] is failed : {}", app, req.id, err);
+                let used = now.elapsed()?;
+                error!(
+                    target: REQUEST,
+                    "[{}-{}] is failed : {} , used {} s",
+                    app,
+                    req.id,
+                    err,
+                    used.as_secs_f32()
+                );
                 // 采集错误
                 writer_framed
                     .send(Packet::StatementResp(StatementResp::new(
@@ -469,26 +399,13 @@ async fn process<'a>(
                     .await?;
             }
         };
-        let elapsed = now.elapsed()?;
-        let used = elapsed.as_secs_f64();
-        {
-            if req.script != QUERY_NETWORK_STATES {
-                // 更新状态信息
-                let mut state = state.write();
-                state.entry(addr).and_modify(|c| {
-                    c.state = ClientState::Idle(req.clone(), used);
-                });
-            }
-        }
     }
-    drop(connection);
     info!(target: CONNECT, "[{}] - disconnected.", app);
     Ok(())
 }
 
 async fn new_statement<'a>(
     connection: &Box<dyn Connection>,
-    state: State,
     app_name: &str,
     req: &StatementReq,
     writer_framed: &mut FramedWrite<OwnedWriteHalf, PacketCodec>,
@@ -498,14 +415,9 @@ async fn new_statement<'a>(
         "[{}-{}] process {} in {} s.", app_name, req.id, req.script, req.timeout
     );
 
-    let statement = if req.script == QUERY_NETWORK_STATES {
-        // 返回当前所有连接的执行状态
-        network_states_resp(state, req).await?
-    } else {
-        connection
-            .new_statement(&req.script, Duration::from_secs(req.timeout as u64))
-            .await?
-    };
+    let statement = connection
+        .new_statement(&req.script, Duration::from_secs(req.timeout as u64))
+        .await?;
     let response = statement.wait()?;
     let columns = response.columns();
 
@@ -541,19 +453,4 @@ async fn new_statement<'a>(
         "[{}-{}] responsed {} rows.", app_name, req.id, row_count
     );
     Ok(())
-}
-
-async fn network_states_resp(
-    state: State,
-    req: &StatementReq,
-) -> Result<Statement, bee_core::Error> {
-    let (request, response) = new_req(Args::new(), Duration::from_secs(req.timeout as u64));
-    let mut commit: Promise<ClientInfo> = request.head()?;
-    {
-        let lock = state.read();
-        for (_, value) in lock.iter() {
-            commit.commit(value.clone())?;
-        }
-    }
-    Ok(response)
 }

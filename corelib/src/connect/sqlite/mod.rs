@@ -26,7 +26,13 @@ impl SqliteSession {
     }
 
     fn new_connection() -> Result<Connection> {
-        Connection::open_in_memory_with_flags(OpenFlags::default())
+        let flag = OpenFlags::SQLITE_OPEN_READ_ONLY
+            | OpenFlags::SQLITE_OPEN_NO_MUTEX
+            | OpenFlags::SQLITE_OPEN_MEMORY
+            | OpenFlags::SQLITE_OPEN_URI;
+        let conn = Connection::open_in_memory_with_flags(flag)?;
+        conn.set_prepared_statement_cache_capacity(0);
+        Ok(conn)
     }
 }
 

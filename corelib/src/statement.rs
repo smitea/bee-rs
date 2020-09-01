@@ -1,10 +1,8 @@
 use crate::{Args, Columns, Error, Request, Row, State};
 use std::{
-    sync::mpsc::{sync_channel, Receiver, RecvTimeoutError},
+    sync::mpsc::{Receiver, RecvTimeoutError, channel},
     time::Duration,
 };
-
-const CHANNEL_SIZE: usize = 1024;
 
 /// 请求执行后的结果集
 pub struct Statement {
@@ -114,7 +112,7 @@ impl Iterator for Response {
 
 /// 创建一个请求和一个结果集，通过请求参数列表 `args` 和 最大执行时间 `timeout`
 pub fn new_req(args: Args, timeout: Duration) -> (Request, Statement) {
-    let (tx, rx) = sync_channel(CHANNEL_SIZE);
+    let (tx, rx) = channel();
     let request = Request::new(args, tx);
     let statement = Statement::new(Some(timeout), rx);
     return (request, statement);
@@ -122,7 +120,7 @@ pub fn new_req(args: Args, timeout: Duration) -> (Request, Statement) {
 
 /// 创建一个请求和一个结果集，通过请求参数列表 `args`, 无最大执行时间
 pub fn new_req_none(args: Args) -> (Request, Statement) {
-    let (tx, rx) = sync_channel(CHANNEL_SIZE);
+    let (tx, rx) = channel();
     let request = Request::new(args, tx);
     let statement = Statement::new(None, rx);
     return (request, statement);
@@ -133,7 +131,7 @@ fn test() {
     use crate::{Args, Request};
     use std::sync::mpsc::*;
 
-    let (rx, tx) = sync_channel::<State>(1024);
+    let (rx, tx) = channel::<State>();
     let request = Request::new(Args::new(), rx);
     let _ = std::thread::spawn(move || {
         let mut promise = request
