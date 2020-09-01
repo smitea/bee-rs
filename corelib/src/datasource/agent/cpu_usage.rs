@@ -1,5 +1,5 @@
 use crate::{Columns, Promise, Result, Row, ToData};
-use smol::block_on;
+use async_std::task::block_on;
 use std::time::Duration;
 
 #[derive(Data, PartialEq)]

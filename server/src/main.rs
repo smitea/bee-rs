@@ -430,7 +430,6 @@ async fn process<'a>(
             },
         );
     }
-
     let app = req.application;
     info!(target: CONNECT, "[{}] - connected.", app);
     while let Some(Ok(Packet::StatementReq(req))) = reader_framed.next().await {
@@ -478,6 +477,7 @@ async fn process<'a>(
             }
         }
     }
+    drop(connection);
     info!(target: CONNECT, "[{}] - disconnected.", app);
     Ok(())
 }
@@ -498,7 +498,9 @@ async fn new_statement<'a>(
         // 返回当前所有连接的执行状态
         network_states_resp(state, req).await?
     } else {
-        connection.new_statement(&req.script, Duration::from_secs(req.timeout as u64)).await?
+        connection
+            .new_statement(&req.script, Duration::from_secs(req.timeout as u64))
+            .await?
     };
     let response = statement.wait()?;
     let columns = response.columns();

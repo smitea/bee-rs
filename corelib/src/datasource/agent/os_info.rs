@@ -1,6 +1,6 @@
 use crate::{Columns, Promise, Result, Row, ToData};
 use heim::host::{platform, Platform};
-use smol::block_on;
+use async_std::task::block_on;
 
 #[derive(Data)]
 pub struct OSInfo {

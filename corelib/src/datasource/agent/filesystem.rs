@@ -1,8 +1,8 @@
 use crate::{Columns, Error, Promise, Row, ToData};
 
 use heim::disk::partitions_physical;
-use smol::block_on;
-use smol::prelude::*;
+use async_std::task::block_on;
+use async_std::prelude::*;
 use std::ffi::OsStr;
 
 #[derive(Data)]

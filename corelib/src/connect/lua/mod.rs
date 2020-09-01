@@ -64,14 +64,14 @@ impl Connection for LuaSession {
         let ds_list = self.ds_list.clone();
         let func_list = self.func_list.clone();
 
-        let _ = smol::spawn(async move {
+        let _ = async_std::task::spawn(async move {
             if let Err(err) = run_lua_script(&mut request, script, ds_list, func_list) {
                 let _ = request.error(err);
             }else{
                 let _ = request.ok();
             }
             drop(request);
-        }).detach();
+        });
         Ok(response)
     }
 }
@@ -139,7 +139,7 @@ fn register_context(
 
 #[test]
 fn test() {
-    smol::block_on(async {
+    async_std::task::block_on(async {
         let lua_script = r#"
         local resp=filesystem();
         while(resp:has_next())
@@ -169,7 +169,7 @@ fn test() {
 #[test]
 #[should_panic(expected = "runtime error:")]
 fn test_no_such_func() {
-    smol::block_on(async {
+    async_std::task::block_on(async {
         let lua_script = r#"
         local resp=test();
         while(resp:has_next())
@@ -190,7 +190,7 @@ fn test_no_such_func() {
 #[test]
 #[should_panic(expected = "runtime error:")]
 fn test_runtime() {
-    smol::block_on(async {
+    async_std::task::block_on(async {
         let lua_script = r#"
         local resp=test();
         while(resp:has_next())

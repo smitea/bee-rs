@@ -60,7 +60,7 @@ pub fn assert_remote_sql(
     row_size: usize,
     timeout: std::time::Duration,
 ) {
-    smol::block_on(async move {
+    async_std::task::block_on(async move {
         let session: Box<dyn Connection> = new_ssh_connection_for_sql().await.unwrap();
         assert_columns(session, sql, columns, row_size, timeout);
     });
@@ -75,7 +75,7 @@ pub fn assert_agent_sql(
     row_size: usize,
     timeout: std::time::Duration,
 ) {
-    smol::block_on(async move {
+    async_std::task::block_on(async move {
         let session: Box<dyn Connection> = new_agent_connection_for_sql().await.unwrap();
         assert_columns(session, sql, columns, row_size, timeout);
     });
@@ -85,7 +85,7 @@ pub fn assert_agent_sql(
 #[cfg(feature = "lua")]
 #[allow(dead_code)]
 pub fn assert_remote_lua(script: &str, row_size: usize, timeout: std::time::Duration) {
-    smol::block_on(async move {
+    async_std::task::block_on(async move {
         let session: Box<dyn Connection> = new_ssh_connection_for_lua().await.unwrap();
         assert_row(session, script, row_size, timeout);
     });
@@ -95,7 +95,7 @@ pub fn assert_remote_lua(script: &str, row_size: usize, timeout: std::time::Dura
 #[cfg(feature = "lua")]
 #[allow(dead_code)]
 pub fn assert_agent_lua(script: &str, row_size: usize, timeout: std::time::Duration) {
-    smol::block_on(async move {
+    async_std::task::block_on(async move {
         let session: Box<dyn Connection> = new_agent_connection_for_lua().await.unwrap();
         assert_row(session, script, row_size, timeout);
     });
@@ -107,7 +107,7 @@ fn assert_row(
     row_size: usize,
     timeout: std::time::Duration,
 ) {
-    smol::block_on(async move {
+    async_std::task::block_on(async move {
         let statement = session.new_statement(sql, timeout).await.unwrap();
         let resp = statement.wait().unwrap();
         let mut index = 0;
@@ -127,7 +127,7 @@ fn assert_columns(
     row_size: usize,
     timeout: std::time::Duration,
 ) {
-    smol::block_on(async move {
+    async_std::task::block_on(async move {
         let statement = session.new_statement(sql, timeout).await.unwrap();
         let resp = statement.wait().unwrap();
         let new_columns = resp.columns();

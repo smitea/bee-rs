@@ -11,7 +11,7 @@ pub async fn register_ds<T: Configure>(_: &Instance, connection: &T) -> Result<(
 
 #[test]
 fn test(){
-    smol::block_on(async{
+    async_std::task::block_on(async{
         let _ = crate::new_connection("sqlite:debug:default").await.unwrap();
     });
 }

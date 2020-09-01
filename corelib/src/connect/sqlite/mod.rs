@@ -79,14 +79,14 @@ impl crate::Connection for SqliteSession {
         let conn = self.connection.clone();
 
         let script = script.to_string();
-        let _ = smol::spawn(async move {
+        let _ = async_std::task::spawn(async move {
             let req = request;
             if let Err(err) = commit_statement(conn, script, &req) {
                 let _ = req.error(err);
-            }else{
+            } else {
                 let _ = req.ok();
             }
-        }).detach();
+        });
         Ok(response)
     }
 }
@@ -176,7 +176,7 @@ fn get_columns(sql_columns: Vec<Column>) -> Columns {
 
 #[test]
 fn test_sqlite_sql() {
-    smol::block_on(async {
+    async_std::task::block_on(async {
         let lua_script = r#"
         SELECT * FROM filesystem() WHERE name NOT LIKE '%tmp%'
         "#;
@@ -201,7 +201,7 @@ fn test_sqlite_sql() {
 #[test]
 #[should_panic(expected = "no such table: test")]
 fn test_faild_no_such_table() {
-    smol::block_on(async {
+    async_std::task::block_on(async {
         let lua_script = r#"
         SELECT * FROM test();
         "#;
@@ -217,7 +217,7 @@ fn test_faild_no_such_table() {
 #[test]
 #[should_panic(expected = "near ")]
 fn test_faild_sql_error() {
-    smol::block_on(async {
+    async_std::task::block_on(async {
         let lua_script = r#"
         SELEC * FROM test;
         "#;
@@ -233,7 +233,7 @@ fn test_faild_sql_error() {
 #[test]
 #[should_panic(expected = "no such function")]
 fn test_faild_not_such_func() {
-    smol::block_on(async {
+    async_std::task::block_on(async {
         let lua_script = r#"
         SELECT csv(name) FROM filesystem();
         "#;
