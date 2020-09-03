@@ -35,7 +35,7 @@ pub fn impl_datasource(_: TokenStream, input: TokenStream) -> TokenStream {
     let name_str = quote! {#name}.to_string();
     // 获取 Promise 的构建代码
     let promise_body = quote! {
-        let mut promise: Promise<#t> = request.head()?;
+        let mut promise: Promise<#t> = request.head().await?;
     };
 
     // 实现 DS 结构
@@ -54,6 +54,7 @@ pub fn impl_datasource(_: TokenStream, input: TokenStream) -> TokenStream {
             }
         }
 
+        #[async_trait]
         impl crate::DataSource for DataSourceImpl{
             fn name(&self) -> &str {
                 #name_str
@@ -67,10 +68,11 @@ pub fn impl_datasource(_: TokenStream, input: TokenStream) -> TokenStream {
             fn get_register(&self) -> &crate::Register{
                 &self.register
             }
-            fn collect(&self, request: &mut crate::Request) -> crate::Result<()> {
+
+            async fn collect(&self, request: &mut crate::Request) -> crate::Result<()> {
                 #promise_body
                 #call_args_body
-                return Ok(());
+                Ok(())
             }
         }
     };
@@ -174,9 +176,9 @@ fn match_call_args(
 
             token
         };
-
+        
         args_body.push(body);
     }
 
-    quote! { let _ = #name(#(#args_body),*)?;}
+    quote! { let _ = #name(#(#args_body),*).await?;}
 }

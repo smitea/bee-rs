@@ -309,19 +309,16 @@ async fn start_server(config: Config) -> Result<(), Box<dyn Error>> {
     loop {
         let (stream, addr) = listener.accept().await?;
         stream.set_nodelay(true)?;
-        stream.set_keepalive(None)?;
-        stream.set_ttl(1024)?;
-        // stream.set_keepalive(Some(Duration::from_secs(10)))?;
-        // stream.set_recv_buffer_size(1024 * 10)?;
-        // stream.set_send_buffer_size(1024 * 10)?;
 
-        tokio::spawn(async move {
-            info!(target: CONNECT, "{} - connected", addr);
+        let _ = tokio::spawn(async move {
+            info!(target: CONNECT, "[{}] - connected", addr);
             let (reader, writer) = stream.into_split();
             let reader_framed = FramedRead::new(reader, PacketCodec);
             let writer_framed = FramedWrite::new(writer, PacketCodec);
             if let Err(e) = process(reader_framed, writer_framed, addr).await {
                 info!("an error occurred; error = {:?}", e);
+            } else {
+                info!(target: CONNECT, "[{}] - disconnected.", addr);
             }
         });
     }
@@ -400,7 +397,9 @@ async fn process<'a>(
             }
         };
     }
-    info!(target: CONNECT, "[{}] - disconnected.", app);
+    drop(connection);   
+    writer_framed.flush().await?;
+    writer_framed.close().await?;
     Ok(())
 }
 
@@ -416,9 +415,9 @@ async fn new_statement<'a>(
     );
 
     let statement = connection
-        .new_statement(&req.script, Duration::from_secs(req.timeout as u64))
+        .new_statement(&req.script)
         .await?;
-    let response = statement.wait()?;
+    let response = statement.wait().await?;
     let columns = response.columns();
 
     let mut row_count = 0;

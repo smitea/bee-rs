@@ -64,13 +64,14 @@ public class Transport implements Closeable {
         configBootstrap(bootstrap, eventLoopGroup);
         final ChannelFuture connect = bootstrap.connect(address);
         connect.addListener((ChannelFutureListener) channelFuture -> {
-            connectLatch.countDown();
             if (channelFuture.isSuccess()) {
                 writeChannel = channelFuture.channel();
                 isClosed.set(false);
+                connectLatch.countDown();
             } else {
                 isClosed.set(true);
                 throwable.set(channelFuture.cause());
+                connectLatch.countDown();
                 throw new Exception(channelFuture.cause());
             }
         });
@@ -78,12 +79,10 @@ public class Transport implements Closeable {
     }
 
     private void configBootstrap(Bootstrap bootstrap, EventLoopGroup group) {
-        bootstrap.group(group).channel(NioSocketChannel.class).option(ChannelOption.TCP_NODELAY, true)
-                .option(ChannelOption.SO_KEEPALIVE, true).option(ChannelOption.SO_RCVBUF, Integer.MAX_VALUE)
+        bootstrap.group(group).channel(NioSocketChannel.class)
+                .option(ChannelOption.TCP_NODELAY, true)
+                .option(ChannelOption.SO_KEEPALIVE, true)
                 .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, soTimeout)
-                .option(ChannelOption.AUTO_READ, true)
-                .option(ChannelOption.SO_SNDBUF, Integer.MAX_VALUE)
-                .option(ChannelOption.SO_RCVBUF, Integer.MAX_VALUE)
                 .option(ChannelOption.RCVBUF_ALLOCATOR,
                         new AdaptiveRecvByteBufAllocator(Packet.LENGTH, Packet.LENGTH, Integer.MAX_VALUE))
                 .handler(new ChannelInitializer<SocketChannel>() {
@@ -95,10 +94,7 @@ public class Transport implements Closeable {
                         cp.addLast(new SimpleChannelInboundHandler<Packet>() {
                             @Override
                             protected void channelRead0(ChannelHandlerContext ctx, Packet packet) {
-                                int index = packetQueue.size();
-
-                                // 遍历队列进行查找
-                                for (int i = 0; i < index; i++) {
+                                while (true) {
                                     PacketHandler handler = packetQueue.poll();
                                     if (handler != null) {
                                         if (handler.type() == packet.getType()) {
@@ -120,6 +116,7 @@ public class Transport implements Closeable {
                                                     packetQueue.offer(handler);
                                                 }
                                                 buf.release();
+                                                break;
                                             } else {
                                                 // 重置读取位
                                                 buf.resetReaderIndex();
@@ -139,12 +136,12 @@ public class Transport implements Closeable {
                             @Override
                             public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
                                 // 清理资源
-                                isClosed.set(true);
                                 ctx.close();
                                 throwable.set(cause);
                                 packetQueue.clear();
-                                connectLatch.countDown();
                                 super.exceptionCaught(ctx, cause);
+                                isClosed.set(true);
+                                connectLatch.countDown();
                             }
                         });
                     }

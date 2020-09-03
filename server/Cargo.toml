@@ -6,7 +6,7 @@ authors = ["xiao.huang@enmotech.com <xiao.huang@enmotech.com>"]
 edition = "2018"
 
 [dependencies]
-bee-core            = {version = "0.1.0", path = "../corelib" , features = ["agent", "sqlite", "remote", "lua"]}
+bee-core            = {version = "0.1.0", path = "../core" , features = ["agent", "sqlite", "remote", "lua"]}
 bee-codec           = {version = "0.1.0", path = "../codec"}
 log                 = "*"
 chrono              = "*"

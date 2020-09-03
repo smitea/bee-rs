@@ -68,11 +68,11 @@ public class Promise<T> implements Callback<T>, Future<T> {
         }
     }
 
-    public T await(long amount, TimeUnit unit) throws Exception {
+    public T await(long amount, TimeUnit unit, String msg) throws Exception {
         if (latch.await(amount, unit)) {
             return get();
         } else {
-            throw new TimeoutException();
+            throw new TimeoutException(msg);
         }
     }
 

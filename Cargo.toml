@@ -1,6 +1,6 @@
 [workspace]
 members = [
-    "corelib",
+    "core",
     "codegen",
     "codec",
 

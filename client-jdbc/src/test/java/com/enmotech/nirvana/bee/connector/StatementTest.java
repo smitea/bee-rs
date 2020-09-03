@@ -15,6 +15,7 @@ import java.util.concurrent.BlockingDeque;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingDeque;
+import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
@@ -24,7 +25,6 @@ import static org.junit.Assert.assertArrayEquals;
 public class StatementTest extends ConnectorUrl {
 
     private Connection createConnection() throws BeeException {
-//        return new BeeConnection(createClientAgentForLuaInfo());
         return new BeeConnection(createClientAgentInfo());
     }
 
@@ -61,14 +61,15 @@ public class StatementTest extends ConnectorUrl {
 
     @Test
     public void testBranch() throws InterruptedException, SQLException {
-        final int BRANCH_NUM = 1000;
-        final int TASK_NUM = 400;
+        final int BRANCH_NUM = 200;
+        final int TASK_NUM = 10000;
 
         BlockingDeque<Runnable> blockingDeque = new LinkedBlockingDeque<>();
-        ThreadPoolExecutor connExecutor = new ThreadPoolExecutor(4, 4, 1000L, TimeUnit.MILLISECONDS, blockingDeque);
-        ThreadPoolExecutor executor = new ThreadPoolExecutor(4, 4, 1000L, TimeUnit.MILLISECONDS, blockingDeque);
+        ThreadPoolExecutor connExecutor = new ThreadPoolExecutor(4, 4, 1000L, TimeUnit.MILLISECONDS, blockingDeque, r -> new Thread(r, "conn"));
+        ThreadPoolExecutor executor = new ThreadPoolExecutor(4, 4, 1000L, TimeUnit.MILLISECONDS, blockingDeque, r -> new Thread(r, "task"));
         Queue<Connection> connections = new LinkedBlockingDeque<>(BRANCH_NUM);
         CountDownLatch taskLatch = new CountDownLatch(TASK_NUM * BRANCH_NUM);
+        long now = System.currentTimeMillis();
         for (int i = 0; i < BRANCH_NUM; i++) {
             connExecutor.submit(() -> {
                 try {
@@ -79,32 +80,13 @@ public class StatementTest extends ConnectorUrl {
                                 Statement statement = connection.createStatement();
                                 statement.setQueryTimeout(10);
                                 ResultSet resultSet = statement.executeQuery("SELECT *FROM filesystem");
-//                                ResultSet resultSet = statement.executeQuery("local resp=filesystem();\n" +
-//                                        "            while(resp:has_next())\n" +
-//                                        "            do\n" +
-//                                        "                _request:commit(_next);\n" +
-//                                        "            end");
                                 ResultSetMetaData metaData = resultSet.getMetaData();
                                 int colCount = metaData.getColumnCount();
-                                List<String> cols = new ArrayList<>();
-                                for (int k = 0; k < colCount; k++) {
-                                    cols.add(metaData.getColumnLabel(k));
-                                }
-                                String[] colNames = new String[colCount];
-                                cols.toArray(colNames);
-                                assertArrayEquals(new String[]{"name", "mount_on", "total_bytes", "used_bytes", "free_bytes"}, colNames);
                                 while (resultSet.next()) {
                                     String filesystem = resultSet.getString("name");
                                     long total = resultSet.getLong("total_bytes");
                                     long used = resultSet.getLong("used_bytes");
                                     long avail = resultSet.getLong("free_bytes");
-
-//                                    System.out.println("name:" + filesystem);
-//                                    System.out.println("total:" + total);
-//                                    System.out.println("used:" + used);
-//                                    System.out.println("avail:" + avail);
-//
-//                                    System.out.println();
                                 }
                             } catch (Exception e) {
                                 e.printStackTrace();
@@ -120,6 +102,7 @@ public class StatementTest extends ConnectorUrl {
             });
         }
         taskLatch.await();
+        System.out.println("used " + (System.currentTimeMillis() - now) / 1000.0 + " s");
         for (Connection connection : connections) {
             connection.close();
         }
