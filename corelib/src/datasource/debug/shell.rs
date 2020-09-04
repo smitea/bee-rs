@@ -19,7 +19,7 @@ fn shell(output: String, _timeout: u32, promise: &mut Promise<BashRow>) -> Resul
 fn test() {
     use crate::*;
     let (req, resp) = crate::new_req(crate::Args::new(), std::time::Duration::from_secs(2));
-    {
+    async_std::task::spawn_blocking(move || {
         let mut promise = req.head::<BashRow>().unwrap();
         if let Err(err) = shell(
             r#"
@@ -34,7 +34,7 @@ fn test() {
             let _ = req.ok();
         }
         drop(req);
-    }
+    });
 
     let resp = resp.wait().unwrap();
     assert_eq!(

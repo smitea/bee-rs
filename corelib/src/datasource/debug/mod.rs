@@ -1,17 +1,15 @@
-use crate::{Instance, Configure,Result};
+use crate::{Configure, Instance, Result};
 
 mod shell;
 
 /// 注册数据源
-pub async fn register_ds<T: Configure>(_: &Instance, connection: &T) -> Result<()> {
+pub fn register_ds<T: Configure>(_: &Instance, connection: &T) -> Result<()> {
     use crate::register_ds;
     connection.register_source(register_ds!(shell))?;
     Ok(())
 }
 
 #[test]
-fn test(){
-    async_std::task::block_on(async{
-        let _ = crate::new_connection("sqlite:debug:default").await.unwrap();
-    });
+fn test() {
+    let _ = crate::new_connection("sqlite:debug:default").unwrap();
 }

@@ -9,7 +9,6 @@ url                 = {version = "*"}
 percent-encoding    = {version = "*"}
 parking_lot         = {version = "0.11"}
 async-std           = {version = "1.6.3"}
-async-trait         = {version = "0.1.40"}
 log                 = {version = "*"}
 state               = {version = "0.4"}
 bincode             = {version = "*"}

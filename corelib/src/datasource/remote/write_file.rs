@@ -1,22 +1,17 @@
-use crate::{datasource::Status, Error, Promise, Result, ToData, ToType};
-use parking_lot::RwLock;
+use crate::{datasource::Status, Promise, Result, ToData, ToType};
 use ssh::Session;
-use std::{io::Write, path::PathBuf, sync::Arc, time::Duration};
+use std::{io::Write, path::PathBuf, sync::Arc};
 
 #[datasource]
 pub fn write_file(
-    session: Arc<RwLock<Session>>,
+    session: Arc<Session>,
     base_path: String,
     path: String,
     content: String,
-    timeout: u32,
     promise: &mut Promise<Status>,
 ) -> Result<()> {
     let path: PathBuf = path.parse()?;
-    let mut lock = session
-        .try_write_for(Duration::from_secs(timeout as u64))
-        .ok_or(Error::lock_faild("lock timeout at 'write_file'"))?;
-    let mut channel = lock.scp_new(ssh::Mode::WRITE, base_path)?;
+    let mut channel = session.scp_new(ssh::Mode::WRITE, base_path)?;
     channel.init()?;
     channel.push_file(path, content.len(), 0o644)?;
     let _ = channel.write(content.as_bytes())?;
@@ -30,22 +25,20 @@ fn test() {
     use crate::*;
     let session = super::new_test_sess().unwrap();
     let (req, resp) = crate::new_req(crate::Args::new(), std::time::Duration::from_secs(2));
-    {
+    async_std::task::spawn_blocking(move || {
         let mut promise = req.head::<Status>().unwrap();
         if let Err(err) = write_file(
             session,
             "/tmp".to_string(),
             "test.log".to_owned(),
             "hello world".to_string(),
-            10,
             &mut promise,
         ) {
             let _ = req.error(err);
         } else {
             let _ = req.ok();
         }
-        drop(req);
-    }
+    });
 
     let resp = resp.wait().unwrap();
     assert_eq!(&columns![Boolean: "success"], resp.columns());

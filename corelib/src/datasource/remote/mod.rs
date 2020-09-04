@@ -1,6 +1,5 @@
 use crate::{code, configure::Configure, register_state, DataSource, Error, Instance, Result};
 use ssh::Session;
-use parking_lot::RwLock;
 use std::sync::Arc;
 
 mod shell;
@@ -20,7 +19,7 @@ impl From<SSHError> for Error {
     }
 }
 
-pub fn new_session(instance: &Instance) -> Result<Arc<RwLock<Session>>> {
+pub fn new_session(instance: &Instance) -> Result<Arc<Session>> {
     let protocol = instance.get_connect_mod();
 
     let host = instance.get_host().ok_or(Error::index_param("host"))?;
@@ -51,10 +50,10 @@ pub fn new_session(instance: &Instance) -> Result<Arc<RwLock<Session>>> {
         return Err(Error::index_param("protocol"));
     }
 
-    return Ok(Arc::new(RwLock::new(sess)));
+    return Ok(Arc::new(sess));
 }
 
-pub async fn register_ds<T: Configure>(instance: &Instance, connection: &T) -> Result<()> {
+pub fn register_ds<T: Configure>(instance: &Instance, connection: &T) -> Result<()> {
     use crate::register_ds;
 
     let session = new_session(instance)?;
@@ -79,7 +78,7 @@ pub async fn register_ds<T: Configure>(instance: &Instance, connection: &T) -> R
 
 #[cfg(test)]
 #[cfg(feature = "sqlite")]
-fn new_test_sess()  -> Result<Arc<RwLock<Session>>>{
+fn new_test_sess()  -> Result<Arc<Session>>{
     let uri = get_remote_uri();
     let instance: Instance = format!("sqlite:{}",uri).parse()?;
     new_session(&instance)

@@ -50,7 +50,7 @@ fn run_command(cmd: &str) -> Result<String> {
 }
 
 /// 注册数据源
-pub async fn register_ds<T: Configure>(_: &Instance, connection: &T) -> Result<()> {
+pub fn register_ds<T: Configure>(_: &Instance, connection: &T) -> Result<()> {
     use crate::register_ds;
 
     connection.register_source(register_ds!(read_file))?;
@@ -68,9 +68,7 @@ pub async fn register_ds<T: Configure>(_: &Instance, connection: &T) -> Result<(
 
 #[test]
 fn test() {
-    async_std::task::block_on(async {
-        let _ = crate::new_connection("sqlite:agent:default").await.unwrap();
-    });
+    let _ = crate::new_connection("sqlite:agent:default").unwrap();
 }
 
 #[test]

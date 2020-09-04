@@ -27,15 +27,14 @@ pub fn cpu_usage(promise: &mut Promise<CPUUsage>) -> Result<()> {
 fn test() {
     use crate::*;
     let (req, resp) = crate::new_req(crate::Args::new(), Duration::from_secs(2));
-    {
+    async_std::task::spawn_blocking(move || {
         let mut promise = req.head::<CPUUsage>().unwrap();
         if let Err(err) = cpu_usage(&mut promise) {
             let _ = req.error(err);
         } else {
             let _ = req.ok();
         }
-        drop(req);
-    }
+    });
 
     let resp = resp.wait().unwrap();
     assert_eq!(

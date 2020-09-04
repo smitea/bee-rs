@@ -19,17 +19,17 @@ pub fn mkdir(dir: String, promise: &mut Promise<Status>) -> Result<()> {
 #[test]
 fn test() {
     use crate::*;
-    let path = "/tmp/test/bethune".to_owned();
+    const PATH: &str = "/tmp/test/bethune";
     let (req, resp) = crate::new_req(crate::Args::new(), std::time::Duration::from_secs(2));
-    {
+    async_std::task::spawn_blocking(move || {
         let mut promise = req.head::<Status>().unwrap();
-        if let Err(err) = mkdir(path.clone(), &mut promise) {
+        if let Err(err) = mkdir(PATH.to_string(), &mut promise) {
             let _ = req.error(err);
         } else {
             let _ = req.ok();
         }
         drop(req);
-    }
+    });
 
     let resp = resp.wait().unwrap();
     assert_eq!(&columns![Boolean: "success"], resp.columns());
@@ -41,7 +41,7 @@ fn test() {
     }
     assert!(index > 0);
 
-    let dir = std::fs::read_dir(&path).unwrap();
+    let dir = std::fs::read_dir(&PATH).unwrap();
     assert_eq!(0, dir.count());
-    std::fs::remove_dir(&path).unwrap();
+    std::fs::remove_dir(&PATH).unwrap();
 }

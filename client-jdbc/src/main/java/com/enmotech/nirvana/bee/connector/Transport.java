@@ -33,6 +33,7 @@ import java.net.SocketAddress;
 import java.util.Queue;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
@@ -53,7 +54,9 @@ public class Transport implements Closeable {
 
     public Transport(String addr, int port, int connectTimeout) throws Exception {
         bootstrap = new Bootstrap();
-        eventLoopGroup = new NioEventLoopGroup(1);
+        eventLoopGroup = new NioEventLoopGroup(1, r -> {
+            return new Thread(r, addr + ":" + port);
+        });
         this.isClosed = new AtomicBoolean(true);
         this.connectLatch = new CountDownLatch(1);
         this.soTimeout = connectTimeout;
@@ -64,13 +67,14 @@ public class Transport implements Closeable {
         configBootstrap(bootstrap, eventLoopGroup);
         final ChannelFuture connect = bootstrap.connect(address);
         connect.addListener((ChannelFutureListener) channelFuture -> {
-            connectLatch.countDown();
             if (channelFuture.isSuccess()) {
                 writeChannel = channelFuture.channel();
                 isClosed.set(false);
+                connectLatch.countDown();
             } else {
                 isClosed.set(true);
                 throwable.set(channelFuture.cause());
+                connectLatch.countDown();
                 throw new Exception(channelFuture.cause());
             }
         });
@@ -143,8 +147,8 @@ public class Transport implements Closeable {
                                 ctx.close();
                                 throwable.set(cause);
                                 packetQueue.clear();
-                                connectLatch.countDown();
                                 super.exceptionCaught(ctx, cause);
+                                connectLatch.countDown();
                             }
                         });
                     }

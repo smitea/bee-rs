@@ -1,22 +1,18 @@
 use crate::datasource::BashRow;
 use crate::{Error, Promise, Result, ToData, ToType};
-use parking_lot::RwLock;
 use ssh::Session;
 use std::sync::Arc;
 use std::time::Duration;
 
 #[datasource]
 fn shell(
-    session: Arc<RwLock<Session>>,
+    session: Arc<Session>,
     script: String,
     timeout: u32,
     promise: &mut Promise<BashRow>,
 ) -> Result<()> {
     info!("ssh [{}] with timeout = {}s", script, timeout);
-    let mut lock = session
-        .try_write_for(Duration::from_secs(timeout as u64))
-        .ok_or(Error::lock_faild("lock timeout at 'shell'"))?;
-    let mut channel = lock.channel_new()?;
+    let mut channel = session.channel_new()?;
     channel.open_session()?;
 
     let mark = std::thread::current().id();
@@ -104,15 +100,14 @@ fn test() {
     use crate::*;
     let session = super::new_test_sess().unwrap();
     let (req, resp) = crate::new_req(crate::Args::new(), std::time::Duration::from_secs(2));
-    {
+    async_std::task::spawn_blocking(move || {
         let mut promise = req.head::<BashRow>().unwrap();
         if let Err(err) = shell(session, "echo 'Hello world'".to_owned(), 2, &mut promise) {
             let _ = req.error(err);
         } else {
             let _ = req.ok();
         }
-        drop(req);
-    }
+    });
 
     let resp = resp.wait().unwrap();
     assert_eq!(

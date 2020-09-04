@@ -1,6 +1,5 @@
 use crate::{Columns, Promise, Result, Row, ToData};
 use heim::host::{platform, Platform};
-use async_std::task::block_on;
 
 #[derive(Data)]
 pub struct OSInfo {
@@ -11,7 +10,7 @@ pub struct OSInfo {
 
 #[datasource]
 pub fn os_info(promise: &mut Promise<OSInfo>) -> Result<()> {
-    let platform: Platform = block_on(platform())?;
+    let platform: Platform = async_std::task::block_on(platform())?;
 
     promise.commit(OSInfo {
         os_type: platform.system().to_string(),
@@ -25,7 +24,7 @@ pub fn os_info(promise: &mut Promise<OSInfo>) -> Result<()> {
 fn test() {
     use crate::*;
     let (req, resp) = crate::new_req(crate::Args::new(), std::time::Duration::from_secs(2));
-    {
+    async_std::task::spawn_blocking(move || {
         let mut promise = req.head::<OSInfo>().unwrap();
         if let Err(err) = os_info(&mut promise) {
             let _ = req.error(err);
@@ -33,7 +32,7 @@ fn test() {
             let _ = req.ok();
         }
         drop(req);
-    }
+    });
 
     let resp = resp.wait().unwrap();
     assert_eq!(

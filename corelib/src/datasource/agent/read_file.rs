@@ -75,18 +75,17 @@ fn read_commit(
 #[test]
 fn test() {
     use crate::*;
-    let path = "/tmp/test_file.log".to_string();
-    std::fs::write(&path, "Hello world").unwrap();
+    const PATH: &str = "/tmp/test_file.log";
+    std::fs::write(&PATH, "Hello world").unwrap();
     let (req, resp) = crate::new_req(crate::Args::new(), std::time::Duration::from_secs(2));
-    {
+    async_std::task::spawn_blocking(move || {
         let mut promise = req.head::<FileBytes>().unwrap();
-        if let Err(err) = read_file(path.clone(), 2, 5, &mut promise) {
+        if let Err(err) = read_file(PATH.to_string(), 2, 5, &mut promise) {
             let _ = req.error(err);
         } else {
             let _ = req.ok();
         }
-        drop(req);
-    }
+    });
 
     let resp = resp.wait().unwrap();
     assert_eq!(
@@ -101,7 +100,7 @@ fn test() {
         let file_size: i64 = row.get(1).unwrap();
         let content: Bytes = row.get(2).unwrap();
 
-        assert_eq!(path, file_path);
+        assert_eq!(PATH, file_path);
         assert_eq!(11, file_size);
         assert_eq!(b"llo w".to_vec(), content);
         index += 1;

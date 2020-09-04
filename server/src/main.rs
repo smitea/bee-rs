@@ -6,7 +6,7 @@ use log::{debug, error, info};
 use std::result::Result;
 use tokio::net::tcp::{OwnedReadHalf, OwnedWriteHalf};
 use tokio::net::TcpListener;
-use tokio::runtime::Runtime;
+use tokio::runtime::{Builder, Runtime};
 use tokio::stream::StreamExt;
 
 use futures;
@@ -76,6 +76,12 @@ struct Config {
     port: u16,
     #[structopt(long = "log_level", default_value = "Info")]
     log_level: String,
+    #[structopt(long = "thread_core_num")]
+    thread_core_num: Option<usize>,
+    #[structopt(long = "thread_max_num")]
+    thread_max_num: Option<usize>,
+    #[structopt(long = "thread_stack_size", default_value = "2048")]
+    thread_stack_size: usize,
 }
 
 #[cfg(unix)]
@@ -275,9 +281,23 @@ pub fn replace_env<T: Into<String>>(val: T) -> Result<std::path::PathBuf, String
 fn run(config: Config) -> Result<(), Box<dyn Error>> {
     setup_logger(&config.log_level)?;
     print_headers(&config)?;
-
-    let mut runtime = Runtime::new()?;
+    let mut runtime = new_runtime(&config)?;
     runtime.block_on(async move { start_server(config).await })
+}
+
+fn new_runtime(config: &Config) -> Result<Runtime, Box<dyn Error>> {
+    let cpu_core = num_cpus::get();
+    let core_num = config.thread_core_num.unwrap_or(cpu_core / 2);
+    let max_num = config.thread_max_num.unwrap_or(cpu_core);
+    let runtime = Builder::new()
+        .threaded_scheduler()
+        .core_threads(core_num)
+        .max_threads(max_num)
+        .enable_all()
+        .thread_name("hive")
+        .thread_stack_size(config.thread_stack_size * 1024)
+        .build()?;
+    Ok(runtime)
 }
 
 fn print_headers(config: &Config) -> Result<(), Box<dyn Error>> {
@@ -338,7 +358,7 @@ async fn process<'a>(
             target: CONNECT,
             "[{}] - connecting to {} ...", req.application, req.url
         );
-        match new_connection(&req.url).await {
+        match new_connection(&req.url) {
             Ok(connection) => {
                 writer_framed
                     .send(Packet::ConnectResp(ConnectionResp::Ok))
@@ -415,9 +435,8 @@ async fn new_statement<'a>(
         "[{}-{}] process {} in {} s.", app_name, req.id, req.script, req.timeout
     );
 
-    let statement = connection
-        .new_statement(&req.script, Duration::from_secs(req.timeout as u64))
-        .await?;
+    let statement =
+        connection.new_statement(&req.script, Duration::from_secs(req.timeout as u64))?;
     let response = statement.wait()?;
     let columns = response.columns();
 

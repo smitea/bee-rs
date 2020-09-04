@@ -18,18 +18,17 @@ pub fn write_file(path: String, content: String, promise: &mut Promise<Status>) 
 #[test]
 fn test() {
     use crate::*;
-    let path = "/tmp/test_file.log".to_string();
-    let content = "Hello world".to_owned();
+    const PATH:&str = "/tmp/test_file.log";
+    const CONTENT:&str = "Hello world";
     let (req, resp) = crate::new_req(crate::Args::new(), std::time::Duration::from_secs(2));
-    {
+    async_std::task::spawn_blocking(move || {
         let mut promise = req.head::<Status>().unwrap();
-        if let Err(err) = write_file(path.clone(), content.clone(), &mut promise) {
+        if let Err(err) = write_file(PATH.to_string(), CONTENT.to_string(), &mut promise) {
             let _ = req.error(err);
         } else {
             let _ = req.ok();
         }
-        drop(req);
-    }
+    });
 
     let resp = resp.wait().unwrap();
     assert_eq!(&columns![Boolean: "success"], resp.columns());
@@ -42,7 +41,7 @@ fn test() {
         assert!(success);
         index += 1;
     }
-    assert_eq!(content.as_bytes(), std::fs::read(&path).unwrap().as_slice());
-    std::fs::remove_file(&path).unwrap();
+    assert_eq!(CONTENT.as_bytes(), std::fs::read(&PATH).unwrap().as_slice());
+    std::fs::remove_file(&PATH).unwrap();
     assert!(index > 0);
 }

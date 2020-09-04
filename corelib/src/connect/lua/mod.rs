@@ -52,9 +52,8 @@ impl Configure for LuaSession {
     }
 }
 
-#[async_trait]
 impl Connection for LuaSession {
-    async fn new_statement(
+    fn new_statement(
         &self,
         script: &str,
         timeout: std::time::Duration,
@@ -68,7 +67,7 @@ impl Connection for LuaSession {
             StdLib::BASE | StdLib::STRING | StdLib::UTF8 | StdLib::MATH | StdLib::TABLE,
         );
         let _ = async_std::task::spawn(async move {
-            if let Err(err) = run_lua_script(lua,&mut request, script, ds_list, func_list) {
+            if let Err(err) = run_lua_script(lua, &mut request, script, ds_list, func_list) {
                 let _ = request.error(err);
             } else {
                 let _ = request.ok();
@@ -114,7 +113,7 @@ fn register_context(
         let function = context.create_function(move |_, args: Args| {
             let ds = ds.clone();
             let (mut request, statement) = new_req_none(args);
-            let _ = std::thread::spawn(move || {
+            let _ = async_std::task::spawn_blocking(move || {
                 if let Err(err) = ds.collect(&mut request) {
                     let _ = request.error(err);
                 } else {
@@ -142,71 +141,62 @@ fn register_context(
 
 #[test]
 fn test() {
-    async_std::task::block_on(async {
-        let lua_script = r#"
+    let lua_script = r#"
         local resp=filesystem();
         while(resp:has_next())
         do
             _request:commit(_next);
         end
         "#;
-        let conn = crate::new_connection("lua:agent:default").await.unwrap();
+    let conn = crate::new_connection("lua:agent:default").unwrap();
 
-        let statement = conn
-            .new_statement(lua_script, std::time::Duration::from_secs(2))
-            .await
-            .unwrap();
-        let resp = statement.wait().unwrap();
-        let cols = resp.columns();
-        assert_eq!(5, cols.len());
+    let statement = conn
+        .new_statement(lua_script, std::time::Duration::from_secs(2))
+        .unwrap();
+    let resp = statement.wait().unwrap();
+    let cols = resp.columns();
+    assert_eq!(5, cols.len());
 
-        let mut index = 0;
-        for row in resp {
-            let _ = row.unwrap();
-            index += 1;
-        }
-        assert!(index > 0);
-    });
+    let mut index = 0;
+    for row in resp {
+        let _ = row.unwrap();
+        index += 1;
+    }
+    assert!(index > 0);
 }
 
 #[test]
 #[should_panic(expected = "runtime error:")]
 fn test_no_such_func() {
-    async_std::task::block_on(async {
-        let lua_script = r#"
+    let lua_script = r#"
         local resp=test();
         while(resp:has_next())
         do
             _request:commit(_next);
         end
     "#;
-        let conn = crate::new_connection("lua:agent:default").await.unwrap();
+    let conn = crate::new_connection("lua:agent:default").unwrap();
 
-        let statement = conn
-            .new_statement(lua_script, std::time::Duration::from_secs(2))
-            .await
-            .unwrap();
-        let _ = statement.wait().unwrap();
-    });
+    let statement = conn
+        .new_statement(lua_script, std::time::Duration::from_secs(2))
+        .unwrap();
+    let _ = statement.wait().unwrap();
 }
 
 #[test]
 #[should_panic(expected = "runtime error:")]
 fn test_runtime() {
-    async_std::task::block_on(async {
-        let lua_script = r#"
+    let lua_script = r#"
         local resp=test();
         while(resp:has_next())
         do
             _request:commit(io);
         end
         "#;
-        let conn = crate::new_connection("lua:agent:default").await.unwrap();
+    let conn = crate::new_connection("lua:agent:default").unwrap();
 
-        let statement = conn
-            .new_statement(lua_script, std::time::Duration::from_secs(2))
-            .await
-            .unwrap();
-        let _ = statement.wait().unwrap();
-    });
+    let statement = conn
+        .new_statement(lua_script, std::time::Duration::from_secs(2))
+        .unwrap();
+    let _ = statement.wait().unwrap();
 }

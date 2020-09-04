@@ -27,21 +27,21 @@ pub trait DataSource: Send + Sync {
 }
 
 /// 注册数据源
-pub async fn register_ds<T: Configure>(instance: &Instance, connection: &T) -> Result<()> {
+pub fn register_ds<T: Configure>(instance: &Instance, connection: &T) -> Result<()> {
     let mode = instance.get_ds_mode();
 
     match mode {
         #[cfg(feature = "agent")]
         "agent" => {
-            agent::register_ds(instance, connection).await?;
+            agent::register_ds(instance, connection)?;
         }
         #[cfg(feature = "remote")]
         #[cfg(unix)]
         "remote" => {
-            remote::register_ds(instance, connection).await?;
+            remote::register_ds(instance, connection)?;
         }
         "debug" => {
-            debug::register_ds(instance, connection).await?;
+            debug::register_ds(instance, connection)?;
         }
         _ => unimplemented!(),
     }

@@ -1,9 +1,7 @@
-use crate::{value::Bytes, Columns, Error, Promise, Result, Row, ToData, ToType};
-use parking_lot::RwLock;
+use crate::{value::Bytes, Columns, Promise, Result, Row, ToData, ToType};
 use ssh::{Session, SftpFile};
 use std::{
     alloc::Layout, io::Read, io::Seek, io::SeekFrom, mem::size_of, path::PathBuf, sync::Arc,
-    time::Duration,
 };
 
 #[derive(Data)]
@@ -15,17 +13,13 @@ pub struct FileBytes {
 
 #[datasource]
 pub fn read_file(
-    session: Arc<RwLock<Session>>,
+    session: Arc<Session>,
     path: String,
     start_index: i64,
     size: i64,
-    timeout: u32,
     promise: &mut Promise<FileBytes>,
 ) -> Result<()> {
-    let mut lock = session
-        .try_write_for(Duration::from_secs(timeout as u64))
-        .ok_or(Error::lock_faild("lock timeout at 'read_file'"))?;
-    let mut sftp = lock.sftp_new()?;
+    let mut sftp = session.sftp_new()?;
     sftp.init()?;
 
     let file_path: PathBuf = path.parse()?;
@@ -89,18 +83,17 @@ fn read_commit(
 #[test]
 fn test() {
     use crate::*;
-    let path = "/etc/hosts".to_string();
+    const PATH: &str = "/etc/hosts";
     let session = super::new_test_sess().unwrap();
     let (req, resp) = crate::new_req(crate::Args::new(), std::time::Duration::from_secs(2));
-    {
+    async_std::task::spawn_blocking(move || {
         let mut promise = req.head::<FileBytes>().unwrap();
-        if let Err(err) = read_file(session, path.clone(), 2, 5, 10, &mut promise) {
+        if let Err(err) = read_file(session, PATH.to_string(), 2, 5, &mut promise) {
             let _ = req.error(err);
         } else {
             let _ = req.ok();
         }
-        drop(req);
-    }
+    });
 
     let resp = resp.wait().unwrap();
     assert_eq!(
@@ -115,7 +108,7 @@ fn test() {
         let file_size: i64 = row.get(1).unwrap();
         let content: Bytes = row.get(2).unwrap();
 
-        assert_eq!(path, file_path);
+        assert_eq!(PATH, &file_path);
         assert!(file_size > 0);
         assert_eq!(5, content.len());
         index += 1;

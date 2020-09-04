@@ -1,19 +1,14 @@
-use crate::{datasource::Status, Error, Promise, Result, ToData, ToType};
-use parking_lot::RwLock;
+use crate::{datasource::Status, Promise, Result, ToData, ToType};
 use ssh::Session;
-use std::{sync::Arc, time::Duration};
+use std::sync::Arc;
 
 #[datasource]
 pub fn mkdir(
-    session: Arc<RwLock<Session>>,
+    session: Arc<Session>,
     home_dir: String,
     dir: String,
-    timeout: u32,
     promise: &mut Promise<Status>,
 ) -> Result<()> {
-    let mut session = session
-        .try_write_for(Duration::from_secs(timeout as u64))
-        .ok_or(Error::lock_faild("lock timeout at 'mkdir'"))?;
     let mut scp = session.scp_new(ssh::Mode::RECURSIVE | ssh::Mode::WRITE, &home_dir)?;
     scp.init()?;
     scp.push_directory(&dir, 0o755)?;
@@ -27,21 +22,19 @@ fn test() {
     use crate::*;
     let session = super::new_test_sess().unwrap();
     let (req, resp) = crate::new_req(crate::Args::new(), std::time::Duration::from_secs(2));
-    {
+    async_std::task::spawn_blocking(move || {
         let mut promise = req.head::<Status>().unwrap();
         if let Err(err) = mkdir(
             session,
             "/tmp".to_owned(),
             "bethune".to_owned(),
-            10,
             &mut promise,
         ) {
             let _ = req.error(err);
         } else {
             let _ = req.ok();
         }
-        drop(req);
-    }
+    });
 
     let resp = resp.wait().unwrap();
     assert_eq!(&columns![Boolean: "success"], resp.columns());

@@ -51,7 +51,7 @@ pub fn filesystem(promise: &mut Promise<Filesystem>) -> Result<(), Error> {
 fn test() {
     use crate::*;
     let (req, resp) = crate::new_req(crate::Args::new(), std::time::Duration::from_secs(2));
-    {
+    async_std::task::spawn_blocking(move || {
         let mut promise = req.head::<Filesystem>().unwrap();
         if let Err(err) = filesystem(&mut promise) {
             let _ = req.error(err);
@@ -59,7 +59,7 @@ fn test() {
             let _ = req.ok();
         }
         drop(req);
-    }
+    });
 
     let resp = resp.wait().unwrap();
     assert_eq!(
