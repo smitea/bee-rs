@@ -1,4 +1,4 @@
-package com.enmotech.nirvana.bee.connector.promise;
+package com.enmotech.nirvana.bee.connector;
 
 /**
  * Promise回调接口

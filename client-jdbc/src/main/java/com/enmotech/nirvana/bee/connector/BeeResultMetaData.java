@@ -1,11 +1,9 @@
 package com.enmotech.nirvana.bee.connector;
 
-import com.enmotech.nirvana.bee.connector.codec.NotSupportException;
-
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 
-public class BeeResultMetaData implements ResultSetMetaData {
+class BeeResultMetaData implements ResultSetMetaData {
     private final ColumnInfo[] header;
 
     public BeeResultMetaData(ColumnInfo[] header) {

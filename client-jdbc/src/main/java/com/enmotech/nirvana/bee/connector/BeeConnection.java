@@ -1,11 +1,5 @@
 package com.enmotech.nirvana.bee.connector;
 
-import com.enmotech.nirvana.bee.connector.codec.BeeException;
-import com.enmotech.nirvana.bee.connector.codec.ConnectReq;
-import com.enmotech.nirvana.bee.connector.codec.ConnectResp;
-import com.enmotech.nirvana.bee.connector.codec.NotConnectedException;
-import com.enmotech.nirvana.bee.connector.codec.NotSupportException;
-
 import java.io.Closeable;
 import java.sql.Array;
 import java.sql.Blob;

@@ -1,14 +1,5 @@
 package com.enmotech.nirvana.bee.connector;
 
-import com.enmotech.nirvana.bee.connector.codec.BeeException;
-import com.enmotech.nirvana.bee.connector.codec.Decoder;
-import com.enmotech.nirvana.bee.connector.codec.Encoder;
-import com.enmotech.nirvana.bee.connector.codec.Packet;
-import com.enmotech.nirvana.bee.connector.codec.PacketDecoder;
-import com.enmotech.nirvana.bee.connector.codec.PacketEncoder;
-import com.enmotech.nirvana.bee.connector.codec.PacketHandler;
-import com.enmotech.nirvana.bee.connector.codec.PromisePacketHandler;
-import com.enmotech.nirvana.bee.connector.promise.Promise;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.AdaptiveRecvByteBufAllocator;
@@ -26,7 +17,6 @@ import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
 
 import java.io.Closeable;
-import java.io.IOException;
 import java.net.ConnectException;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
@@ -40,7 +30,7 @@ import java.util.concurrent.atomic.AtomicReference;
 /**
  * 数据传输器
  */
-public class Transport implements Closeable {
+class Transport implements Closeable {
     private final Queue<PacketHandler> packetQueue = new LinkedBlockingQueue<>();
     private final AtomicBoolean isClosed;
     private final CountDownLatch connectLatch;

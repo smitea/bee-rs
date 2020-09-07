@@ -1,11 +1,11 @@
-package com.enmotech.nirvana.bee.connector.codec;
+package com.enmotech.nirvana.bee.connector;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import io.netty.buffer.ByteBuf;
 
-public class ConnectResp implements Decoder {
-    private AtomicBoolean isOk = new AtomicBoolean(false);
+class ConnectResp implements Decoder {
+    private final AtomicBoolean isOk = new AtomicBoolean(false);
     private BeeException exception;
 
     @Override

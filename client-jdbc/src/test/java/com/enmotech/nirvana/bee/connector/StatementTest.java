@@ -1,7 +1,6 @@
 package com.enmotech.nirvana.bee.connector;
 
 import com.enmotech.nirvana.bee.ConnectionFactory;
-import com.enmotech.nirvana.bee.connector.codec.BeeException;
 import org.junit.Test;
 
 import java.sql.Connection;

@@ -1,10 +1,10 @@
-package com.enmotech.nirvana.bee.connector.codec;
+package com.enmotech.nirvana.bee.connector;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
 
-public class Packet {
+class Packet {
     static byte[] HEAD = {(byte) 0xFF, (byte) 0xFF};
     static byte[] END = {0x0D,0x0A};
     public static int LENGTH = 21;

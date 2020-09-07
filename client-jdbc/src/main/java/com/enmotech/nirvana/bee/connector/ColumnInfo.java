@@ -3,7 +3,7 @@ package com.enmotech.nirvana.bee.connector;
 /**
  * 列名信息
  */
-public class ColumnInfo {
+class ColumnInfo {
     private final String name;
     private final DataType type;
 

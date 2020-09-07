@@ -1,8 +1,8 @@
-package com.enmotech.nirvana.bee.connector.codec;
+package com.enmotech.nirvana.bee.connector;
 
 import io.netty.buffer.ByteBuf;
 
-public interface PacketHandler{
+interface PacketHandler{
     void decode(ByteBuf packet);
 
     boolean validPacket(ByteBuf packet);

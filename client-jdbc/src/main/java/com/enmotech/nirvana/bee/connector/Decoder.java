@@ -1,10 +1,10 @@
-package com.enmotech.nirvana.bee.connector.codec;
+package com.enmotech.nirvana.bee.connector;
 
 import io.netty.buffer.ByteBuf;
 
 import java.io.ByteArrayInputStream;
 
-public interface Decoder extends Protocol {
+interface Decoder extends Protocol {
     void decode(ByteBuf packet) throws Exception;
 
     default String read256String(ByteBuf packet) throws Exception {

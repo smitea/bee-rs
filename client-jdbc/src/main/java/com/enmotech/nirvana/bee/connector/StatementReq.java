@@ -1,9 +1,9 @@
-package com.enmotech.nirvana.bee.connector.codec;
+package com.enmotech.nirvana.bee.connector;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 
-public class StatementReq implements Encoder {
+class StatementReq implements Encoder {
     private final int id;
     private final String script;
     private final int timeout;

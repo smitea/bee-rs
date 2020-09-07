@@ -1,25 +1,18 @@
 package com.enmotech.nirvana.bee.connector;
 
-import com.enmotech.nirvana.bee.connector.codec.BeeException;
-import com.enmotech.nirvana.bee.connector.codec.NotSupportException;
-import com.enmotech.nirvana.bee.connector.codec.StatementReq;
-import com.enmotech.nirvana.bee.connector.codec.StatementResp;
-import com.enmotech.nirvana.bee.connector.codec.PacketHandler;
 import io.netty.buffer.ByteBuf;
 
 import java.sql.Connection;
-import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.SQLWarning;
 import java.sql.Statement;
-import java.time.Duration;
 import java.util.concurrent.TimeUnit;
 
 /**
  * Bee 请求
  */
-public class BeeStatement implements Statement{
+class BeeStatement implements Statement{
     private final int id;
     private final BeeConnection connection;
     private final Transport transport;

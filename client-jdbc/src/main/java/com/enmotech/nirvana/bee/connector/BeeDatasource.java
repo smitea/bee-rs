@@ -1,8 +1,5 @@
 package com.enmotech.nirvana.bee.connector;
 
-import com.enmotech.nirvana.bee.connector.codec.BeeException;
-import com.enmotech.nirvana.bee.connector.codec.NotSupportException;
-
 import javax.sql.DataSource;
 import java.io.PrintWriter;
 import java.sql.Connection;

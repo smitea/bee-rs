@@ -1,7 +1,5 @@
 package com.enmotech.nirvana.bee.connector;
 
-import com.enmotech.nirvana.bee.connector.codec.BeeException;
-
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.Properties;

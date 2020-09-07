@@ -1,9 +1,9 @@
-package com.enmotech.nirvana.bee.connector.codec;
+package com.enmotech.nirvana.bee.connector;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 
-public class PingReq implements Encoder {
+class PingReq implements Encoder {
 
     @Override
     public ByteBuf encode() throws Exception {
