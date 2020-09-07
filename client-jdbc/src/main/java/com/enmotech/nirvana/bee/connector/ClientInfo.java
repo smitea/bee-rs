@@ -2,31 +2,49 @@ package com.enmotech.nirvana.bee.connector;
 
 import com.enmotech.nirvana.bee.connector.codec.BeeException;
 
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.util.Properties;
 import java.util.Set;
 
-public class ClientInfo {
-    public static String USERNAME = "username";
-    public static String PASSWORD = "password";
-    public static String CONNECTION_MODE = "connect_mode";
-    public static String SESSION_MODE = "session_mode";
-    public static String DATASOURCE_MODE = "datasource_mode";
-    public static String CONNECTION_HOST = "connection_host";
-    public static String CONNECTION_PORT = "connection_port";
-    public static String CONNECTION_RESOURCE = "connection_resource";
-    public static String CONNECTION_TIMEOUT = "connection_timeout";
-    public static String APPLICATION = "application";
-    public static String PUBLIC_KEY = "public_key";
-    public static String DEFAULT_CONNECT_MODE = "default";
+class ClientInfo {
+    static String USERNAME = "username";
+    static String PASSWORD = "password";
+    static String CONNECTION_MODE = "connect_mode";
+    static String SESSION_MODE = "session_mode";
+    static String DATASOURCE_MODE = "datasource_mode";
+    static String PROXY_HOST = "proxy_host";
+    static String PROXY_PORT = "proxy_port";
+    static String CONNECTION_RESOURCE = "connection_resource";
+    static String CONNECTION_TIMEOUT = "connection_timeout";
+    static String APPLICATION = "application";
+    static String DEFAULT_CONNECT_MODE = "default";
+    static String OS_VERSION = "os_version";
+    static String ENVIRONMENTS = "environments";
 
     private final String beeHost;
     private final int beePort;
-    private Properties properties;
 
-    public ClientInfo(String beeHost, int beePort, Properties properties) {
+    protected int socketTimeout;
+    protected String application;
+
+    protected Properties properties;
+    protected Properties environments;
+
+    public ClientInfo(String beeHost, int beePort) {
         this.beeHost = beeHost;
         this.beePort = beePort;
-        this.properties = properties;
+        this.properties = new Properties();
+        this.environments = new Properties();
+        initApplication();
+    }
+
+    public void initApplication() {
+        try {
+            application = InetAddress.getLocalHost().getHostName();
+        } catch (UnknownHostException e) {
+            application = "jdbc";
+        }
     }
 
     public String getUrl() throws BeeException {
@@ -35,8 +53,8 @@ public class ClientInfo {
         String connectionMode = (String) properties.remove(CONNECTION_MODE);
         String sessionMode = (String) properties.remove(SESSION_MODE);
         String datasourceMode = (String) properties.remove(DATASOURCE_MODE);
-        String connectionHost = (String) properties.remove(CONNECTION_HOST);
-        String connectionPort = (String) properties.remove(CONNECTION_PORT);
+        String proxyHost = (String) properties.remove(PROXY_HOST);
+        String proxyPort = (String) properties.remove(PROXY_PORT);
         String connectionResource = (String) properties.remove(CONNECTION_RESOURCE);
 
         if (sessionMode == null || sessionMode.isEmpty()) {
@@ -56,15 +74,19 @@ public class ClientInfo {
         if (!connectionMode.equals(DEFAULT_CONNECT_MODE)) {
             builder.append("://");
             if (username != null && !username.isEmpty()) {
-                builder.append(username).append(":").append(password).append("@");
+                builder.append(username).append(":");
+                if (password != null) {
+                    builder.append(password);
+                }
+                builder.append("@");
             }
-            if (connectionHost == null || connectionHost.isEmpty()) {
+            if (proxyHost == null || proxyHost.isEmpty()) {
                 throw new BeeException("must setting 'connection_host'", new IllegalArgumentException());
             }
-            if (connectionPort == null || connectionPort.isEmpty()) {
+            if (proxyPort == null || proxyPort.isEmpty()) {
                 throw new BeeException("must setting 'connection_port'", new IllegalArgumentException());
             }
-            builder.append(connectionHost).append(":").append(connectionPort);
+            builder.append(proxyHost).append(":").append(proxyPort);
             if (connectionResource != null && !connectionResource.isEmpty()) {
                 builder.append("/").append(connectionResource);
             }
@@ -80,6 +102,21 @@ public class ClientInfo {
                 }
                 index += 1;
             }
+
+            builder.append("&");
+            builder.append(ENVIRONMENTS);
+            builder.append("=");
+            builder.append("[");
+            Set<Object> envs = environments.keySet();
+            for (Object env : envs) {
+                String keyStr = env.toString();
+                builder.append(keyStr).append(":").append(environments.getProperty(keyStr));
+                if (index < keys.size() - 1) {
+                    builder.append(",");
+                }
+                index += 1;
+            }
+            builder.append("]");
         }
         return builder.toString();
     }
@@ -92,24 +129,20 @@ public class ClientInfo {
         return Integer.parseInt(connectionTimeout);
     }
 
-    public void setConnectionTimeout(int timeout) {
-        properties.setProperty(CONNECTION_TIMEOUT, "" + timeout);
-    }
-
     public String getApplication() {
-        return properties.getProperty(APPLICATION);
+        return application;
     }
 
-    public void setApplication(String application) {
-        properties.setProperty(CONNECTION_TIMEOUT, application);
-    }
-
-    public String getBeeHost() {
+    public String getHost() {
         return beeHost;
     }
 
-    public int getBeePort() {
+    public int getPort() {
         return beePort;
+    }
+
+    public int getSocketTimeout() {
+        return socketTimeout;
     }
 
     public Properties getProperties() {

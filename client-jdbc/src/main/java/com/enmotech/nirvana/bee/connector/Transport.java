@@ -33,7 +33,6 @@ import java.net.SocketAddress;
 import java.util.Queue;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
@@ -52,14 +51,14 @@ public class Transport implements Closeable {
     private volatile Channel writeChannel = null;
     private final AtomicReference<Throwable> throwable = new AtomicReference<>();
 
-    public Transport(String addr, int port, int connectTimeout) throws Exception {
+    public Transport(String addr, int port, int connectTimeout, int socketTimeout) throws Exception {
         bootstrap = new Bootstrap();
         eventLoopGroup = new NioEventLoopGroup(1, r -> {
             return new Thread(r, addr + ":" + port);
         });
         this.isClosed = new AtomicBoolean(true);
         this.connectLatch = new CountDownLatch(1);
-        this.soTimeout = connectTimeout;
+        this.soTimeout = socketTimeout;
         connect(new InetSocketAddress(addr, port), connectTimeout);
     }
 
@@ -216,19 +215,6 @@ public class Transport implements Closeable {
             }
             throw new ConnectException("Not connected.");
         }
-    }
-
-    /**
-     * 创建数据传输器
-     *
-     * @param addr           连接地址
-     * @param port           连接端口
-     * @param connectTimeout 连接超时时间(ms)
-     * @return 返回创建完成的数据传输器
-     * @throws IOException 连接异常信息
-     */
-    static Transport transport(String addr, int port, int connectTimeout) throws Exception {
-        return new Transport(addr, port, connectTimeout);
     }
 
     @Override

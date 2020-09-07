@@ -43,8 +43,9 @@ class BeeConnection implements Connection, Closeable {
 
     private Transport createTransport(ClientInfo clientInfo) throws BeeException {
         try {
-            Transport transport = new Transport(clientInfo.getBeeHost(), clientInfo.getBeePort(),
-                    clientInfo.getConnectionTimeout());
+            Transport transport = new Transport(clientInfo.getHost(), clientInfo.getPort(),
+                    clientInfo.getConnectionTimeout(),
+                    clientInfo.getSocketTimeout());
             ConnectResp resp = transport
                     .writePacket(new ConnectReq(clientInfo.getUrl(), clientInfo.getApplication()), ConnectResp.class)
                     .await(clientInfo.getConnectionTimeout() + 1, TimeUnit.SECONDS);

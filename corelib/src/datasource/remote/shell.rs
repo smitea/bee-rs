@@ -30,7 +30,6 @@ fn shell(
 
     // 设置环境变量
     real_script = set_env(instance, &real_script);
-    println!("shell: {}", real_script);
 
     channel.request_exec(real_script.as_bytes())?;
 

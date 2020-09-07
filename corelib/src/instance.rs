@@ -68,26 +68,28 @@ impl Instance {
                         if key == "environments" {
                             if let Some(val) = value {
                                 let env_str = val.replace("[", "").replace("]", "");
-                                let key_value: Vec<&str> = env_str.split(",").collect();
-                                for item in key_value {
-                                    let item_val: Vec<&str> = item.split(":").collect();
-                                    let key = item_val
-                                        .get(0)
-                                        .ok_or(Error::invalid_type(format!(
-                                            "failed to get params form {}",
-                                            url
-                                        )))?
-                                        .to_string();
-                                    let val = item_val
-                                        .get(1)
-                                        .ok_or(Error::invalid_type(format!(
-                                            "failed to get params form {}",
-                                            url
-                                        )))?
-                                        .to_string();
-                                    let key = key.trim().to_string();
-                                    let val = val.trim().to_string();
-                                    environments.insert(key, val);
+                                if !env_str.trim().is_empty() {
+                                    let key_value: Vec<&str> = env_str.split(",").collect();
+                                    for item in key_value {
+                                        let item_val: Vec<&str> = item.split(":").collect();
+                                        let key = item_val
+                                            .get(0)
+                                            .ok_or(Error::invalid_type(format!(
+                                                "failed to get params form {}",
+                                                url
+                                            )))?
+                                            .to_string();
+                                        let val = item_val
+                                            .get(1)
+                                            .ok_or(Error::invalid_type(format!(
+                                                "failed to get params form {}",
+                                                url
+                                            )))?
+                                            .to_string();
+                                        let key = key.trim().to_string();
+                                        let val = val.trim().to_string();
+                                        environments.insert(key, val);
+                                    }
                                 }
                             }
                         } else {
