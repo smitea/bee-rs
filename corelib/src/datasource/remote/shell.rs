@@ -1,11 +1,12 @@
 use crate::datasource::BashRow;
-use crate::{Error, Promise, Result, ToData, ToType};
+use crate::{Error, Instance, Promise, Result, ToData, ToType};
 use ssh::Session;
 use std::sync::Arc;
 use std::time::Duration;
 
 #[datasource]
 fn shell(
+    instance: Arc<Instance>,
     session: Arc<Session>,
     script: String,
     timeout: u32,
@@ -14,7 +15,6 @@ fn shell(
     info!("ssh [{}] with timeout = {}s", script, timeout);
     let mut channel = session.channel_new()?;
     channel.open_session()?;
-
     let mark = std::thread::current().id();
     // 起始标示
     let mark_start = format!("#{:?}", mark);
@@ -23,10 +23,14 @@ fn shell(
 
     let mark_start_cmd = format!("echo '{}'", mark_start);
     let mark_end_cmd = format!("echo '{}'", mark_end);
-    let real_script = format!(
+    let mut real_script = format!(
         "{};echo '';{};echo '';{};",
         mark_start_cmd, script, mark_end_cmd
     );
+
+    // 设置环境变量
+    real_script = set_env(instance, &real_script);
+    println!("shell: {}", real_script);
 
     channel.request_exec(real_script.as_bytes())?;
 
@@ -95,14 +99,35 @@ fn decode_output(
     return Ok(());
 }
 
+fn set_env(instance: Arc<Instance>, script: &String) -> String {
+    let mut env_str = String::new();
+    let os_version: String = instance.get_param("os_version").unwrap_or_default();
+    for (key, val) in instance.environments.iter() {
+        if os_version == "windows" {
+            env_str.push_str(&format!("set {}={};", key, val));
+        } else {
+            env_str.push_str(&format!("export {}={};", key, val));
+        }
+    }
+    env_str.push_str(script);
+
+    env_str
+}
+
 #[test]
 fn test() {
     use crate::*;
-    let session = super::new_test_sess().unwrap();
+    let (session, instance) = super::new_test_sess().unwrap();
     let (req, resp) = crate::new_req(crate::Args::new(), std::time::Duration::from_secs(2));
     async_std::task::spawn_blocking(move || {
         let mut promise = req.head::<BashRow>().unwrap();
-        if let Err(err) = shell(session, "echo 'Hello world'".to_owned(), 2, &mut promise) {
+        if let Err(err) = shell(
+            instance,
+            session,
+            "echo $ORACLE_SID".to_owned(),
+            2,
+            &mut promise,
+        ) {
             let _ = req.error(err);
         } else {
             let _ = req.ok();
@@ -121,7 +146,7 @@ fn test() {
         let line: String = row.get(0).unwrap();
         let line_num: i64 = row.get(1).unwrap();
 
-        assert_eq!("Hello world".to_owned(), line);
+        assert_eq!("XE".to_owned(), line);
         assert_eq!(0, line_num);
         index += 1;
     }
@@ -132,13 +157,14 @@ fn test() {
 #[should_panic(expected = "timeout")]
 fn test_timeout() {
     use crate::*;
-    let session = super::new_test_sess().unwrap();
+    let (session, instance) = super::new_test_sess().unwrap();
     let (req, resp) = crate::new_req(crate::Args::new(), std::time::Duration::from_secs(2));
     {
         let mut promise = req.head::<BashRow>().unwrap();
         if let Err(err) = shell(
+            instance,
             session,
-            "sleep(5),echo 'Hello world'".to_owned(),
+            "sleep(5),echo $ORACLE_SID".to_owned(),
             2,
             &mut promise,
         ) {
@@ -146,7 +172,6 @@ fn test_timeout() {
         } else {
             let _ = req.ok();
         }
-        drop(req);
     }
 
     let resp = resp.wait().unwrap();

@@ -150,14 +150,17 @@ fn test_tryfrom_value() {
         }
 
         if let Ok(func) = lua_context.create_function(|_, _: String| Ok(())) {
-            assert!(Value::try_from(rlua::Value::Thread(lua_context.create_thread(func).unwrap())).is_err());
+            assert!(Value::try_from(rlua::Value::Thread(
+                lua_context.create_thread(func).unwrap()
+            ))
+            .is_err());
         }
 
-        if let Ok(data) = lua_context.create_userdata(BytesWrapper(2,vec![0x01,0x02])) {
+        if let Ok(data) = lua_context.create_userdata(BytesWrapper(2, vec![0x01, 0x02])) {
             assert!(Value::try_from(rlua::Value::UserData(data)).is_ok());
         }
 
-        let (req,_) = crate::new_req_none(Args::new());
+        let (req, _) = crate::new_req_none(Args::new());
         if let Ok(data) = lua_context.create_userdata(req) {
             assert!(Value::try_from(rlua::Value::UserData(data)).is_err());
         }

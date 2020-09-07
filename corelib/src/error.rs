@@ -213,7 +213,7 @@ impl<T> From<std::sync::PoisonError<std::sync::RwLockReadGuard<'_, T>>> for Erro
     }
 }
 
-impl<T> From<std::sync::PoisonError<parking_lot::ReentrantMutexGuard<'_, T>>> for Error{
+impl<T> From<std::sync::PoisonError<parking_lot::ReentrantMutexGuard<'_, T>>> for Error {
     fn from(err: std::sync::PoisonError<parking_lot::ReentrantMutexGuard<'_, T>>) -> Self {
         Self {
             code: MUTEX_LOCKED,
@@ -288,10 +288,10 @@ fn test() {
     assert_eq!(3847, Error::from(err).get_code());
 
     let err = std::io::Error::new(std::io::ErrorKind::Other, "failed");
-    assert_eq!("3847,failed".to_owned(),Error::from(err).to_string());
+    assert_eq!("3847,failed".to_owned(), Error::from(err).to_string());
 
     let err: Error = "3847,failed".parse().unwrap();
-    assert_eq!(3847,err.get_code());
+    assert_eq!(3847, err.get_code());
     let err: Error = "failed".parse().unwrap();
-    assert_eq!(2306,err.get_code());
+    assert_eq!(2306, err.get_code());
 }

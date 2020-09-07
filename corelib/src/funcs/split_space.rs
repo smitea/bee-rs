@@ -10,18 +10,9 @@ pub fn split_space(line: String) -> Result<Vec<u8>> {
 }
 
 #[test]
-fn test(){
+fn test() {
     let arg = "He 10.02 10         false".to_owned();
     let rs = split_space(arg).unwrap();
     let values: Vec<&str> = bincode::deserialize(&rs).unwrap();
-    assert_eq!(
-        [
-            "He",
-            "10.02",
-            "10",
-            "false"
-        ]
-        .to_vec(),
-        values
-    );
+    assert_eq!(["He", "10.02", "10", "false"].to_vec(), values);
 }

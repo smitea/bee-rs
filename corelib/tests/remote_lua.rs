@@ -3,14 +3,14 @@ mod common;
 #[cfg(feature = "remote")]
 #[cfg(feature = "lua")]
 #[cfg(target_os = "linux")]
-mod test{    
+mod test {
     use crate::common::*;
     use std::time::Duration;
-    
+
     #[test]
     fn test_df_k() {
         init_log();
-    
+
         // Filesystem     1K-blocks    Used Available Use% Mounted on
         // overlay         15312232 9295008   5219684  65% /
         // tmpfs              65536       8     65528   1% /dev
@@ -23,7 +23,8 @@ mod test{
         // tmpfs              65536       8     65528   1% /proc/timer_list
         // tmpfs              65536       8     65528   1% /proc/sched_debug
         // tmpfs            1018900       0   1018900   0% /sys/firmware
-        assert_remote_lua(r#"
+        assert_remote_lua(
+            r#"
             local resp = shell("df -k",10)
             while(resp:has_next())
             do
@@ -39,6 +40,9 @@ mod test{
                     })
                 end
             end
-        "#, 3,  Duration::from_secs(4));
+        "#,
+            3,
+            Duration::from_secs(4),
+        );
     }
 }

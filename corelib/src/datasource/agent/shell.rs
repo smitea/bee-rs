@@ -1,12 +1,18 @@
 use crate::datasource::BashRow;
-use crate::{Promise, Result, ToData, ToType};
+use crate::{Instance, Promise, Result, ToData, ToType};
 use std::io::Read;
 use std::process::Command;
+use std::sync::Arc;
 use std::time::Duration;
 use timeout_readwrite::TimeoutReadExt;
 
 #[datasource]
-fn shell(script: String, timeout: u32, promise: &mut Promise<BashRow>) -> Result<()> {
+fn shell(
+    instance: Arc<Instance>,
+    script: String,
+    timeout: u32,
+    promise: &mut Promise<BashRow>,
+) -> Result<()> {
     let mut cmd = if cfg!(target_os = "windows") {
         let mut cmd = Command::new("cmd");
         cmd.args(&["/C", &script]);
@@ -16,6 +22,10 @@ fn shell(script: String, timeout: u32, promise: &mut Promise<BashRow>) -> Result
         cmd.arg("-c").arg(&script);
         cmd
     };
+
+    for (key, val) in instance.environments.iter() {
+        cmd.env(key, val);
+    }
 
     let child = cmd
         .stdout(std::process::Stdio::piped())
@@ -47,9 +57,18 @@ fn shell(script: String, timeout: u32, promise: &mut Promise<BashRow>) -> Result
 fn test() {
     use crate::*;
     let (req, resp) = crate::new_req(crate::Args::new(), std::time::Duration::from_secs(2));
+    let instance = Instance::from(
+        "sqlite:agent:default://127.0.0.1:6142/bee?environments=[ORACLE_HOME: /app/u01/12c, ORACLE_SID: XE]&os_version=windows",
+    )
+    .unwrap();
     async_std::task::spawn_blocking(move || {
         let mut promise = req.head::<BashRow>().unwrap();
-        if let Err(err) = shell("echo 'Hello world'".to_string(), 2, &mut promise) {
+        if let Err(err) = shell(
+            Arc::new(instance),
+            "echo $ORACLE_HOME".to_string(),
+            2,
+            &mut promise,
+        ) {
             let _ = req.error(err);
         } else {
             let _ = req.ok();
@@ -68,7 +87,7 @@ fn test() {
         let line: String = row.get(0).unwrap();
         let line_num: i64 = row.get(1).unwrap();
 
-        assert_eq!("Hello world".to_owned(), line);
+        assert_eq!("/app/u01/12c".to_owned(), line);
         assert_eq!(0, line_num);
         index += 1;
     }
@@ -79,11 +98,20 @@ fn test() {
 #[should_panic(expected = "timed out")]
 fn test_shell_timeout() {
     use crate::*;
+    let instance = Instance::from(
+        "sqlite:agent:default?environments=[ORACLE_HOME: /app/u01/12c, ORACLE_SID: XE]",
+    )
+    .unwrap();
     let (req, resp) = crate::new_req(crate::Args::new(), std::time::Duration::from_secs(2));
     {
         println!("new shell");
         let mut promise = req.head::<BashRow>().unwrap();
-        if let Err(err) = shell("sleep 10;echo 'Hello world'".to_string(), 2, &mut promise) {
+        if let Err(err) = shell(
+            Arc::new(instance),
+            "sleep 10;echo 'Hello world'".to_string(),
+            2,
+            &mut promise,
+        ) {
             let _ = req.error(err);
         } else {
             let _ = req.ok();

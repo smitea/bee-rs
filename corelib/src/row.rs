@@ -1,5 +1,5 @@
 use crate::{Error, Result, Value};
-use std::{ops::Deref, convert::TryFrom};
+use std::{convert::TryFrom, ops::Deref};
 
 /// 数据行
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -78,7 +78,7 @@ fn test() {
 }
 
 #[test]
-fn test_faild(){
+fn test_faild() {
     let row: Row = crate::row!(10, 20.0, "Name", false, vec![0x01, 0x02]);
     assert!(row.get_value(5).is_err());
 
@@ -90,5 +90,5 @@ fn test_faild(){
     row.push("He");
     assert!(row.get_value(0).is_ok());
 
-    assert_eq!(1,row.iter().len());
+    assert_eq!(1, row.iter().len());
 }

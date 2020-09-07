@@ -151,96 +151,83 @@ fn test() {
 
     assert_eq!(
         2306,
-        Error::from(SQLiteError::InvalidPath("/test/bin".parse().unwrap()))
-        .get_code()
+        Error::from(SQLiteError::InvalidPath("/test/bin".parse().unwrap())).get_code()
     );
 
     assert_eq!(
         2306,
-        Error::from(SQLiteError::InvalidParameterName("name".to_owned()))
-        .get_code()
+        Error::from(SQLiteError::InvalidParameterName("name".to_owned())).get_code()
     );
 
     assert_eq!(
         2306,
-        Error::from(SQLiteError::ExecuteReturnedResults)
-        .get_code()
-    );
-
-
-    assert_eq!(
-        2306,
-        Error::from(SQLiteError::QueryReturnedNoRows)
-        .get_code()
+        Error::from(SQLiteError::ExecuteReturnedResults).get_code()
     );
 
     assert_eq!(
         2306,
-        Error::from(SQLiteError::InvalidColumnIndex(0))
-        .get_code()
+        Error::from(SQLiteError::QueryReturnedNoRows).get_code()
     );
 
     assert_eq!(
         2306,
-        Error::from(SQLiteError::InvalidColumnName("name".to_owned()))
-        .get_code()
+        Error::from(SQLiteError::InvalidColumnIndex(0)).get_code()
+    );
+
+    assert_eq!(
+        2306,
+        Error::from(SQLiteError::InvalidColumnName("name".to_owned())).get_code()
     );
 
     assert_eq!(
         782345,
-        Error::from(SQLiteError::InvalidColumnType(0,"name".to_owned(), rusqlite::types::Type::Text))
+        Error::from(SQLiteError::InvalidColumnType(
+            0,
+            "name".to_owned(),
+            rusqlite::types::Type::Text
+        ))
         .get_code()
     );
 
     assert_eq!(
         2306,
-        Error::from(SQLiteError::StatementChangedRows(0))
-        .get_code()
+        Error::from(SQLiteError::StatementChangedRows(0)).get_code()
     );
 
     assert_eq!(
         265,
-        Error::from(SQLiteError::ToSqlConversionFailure(Box::new(Error::other(0x01, ""))))
+        Error::from(SQLiteError::ToSqlConversionFailure(Box::new(Error::other(
+            0x01, ""
+        ))))
         .get_code()
     );
 
-    assert_eq!(
-        2306,
-        Error::from(SQLiteError::InvalidQuery)
-        .get_code()
-    );
+    assert_eq!(2306, Error::from(SQLiteError::InvalidQuery).get_code());
 
-    assert_eq!(
-        2306,
-        Error::from(SQLiteError::MultipleStatement)
-        .get_code()
-    );
+    assert_eq!(2306, Error::from(SQLiteError::MultipleStatement).get_code());
 
     assert_eq!(
         265,
-        Error::from(SQLiteError::UserFunctionError(Box::new(Error::other(0x01, ""))))
+        Error::from(SQLiteError::UserFunctionError(Box::new(Error::other(
+            0x01, ""
+        ))))
         .get_code()
     );
 
     assert_eq!(
         2306,
-        Error::from(SQLiteError::InvalidFunctionParameterType(0, rusqlite::types::Type::Text))
+        Error::from(SQLiteError::InvalidFunctionParameterType(
+            0,
+            rusqlite::types::Type::Text
+        ))
         .get_code()
     );
-    assert_eq!(
-        2306,
-        Error::from(SQLiteError::GetAuxWrongType)
-        .get_code()
-    );
+    assert_eq!(2306, Error::from(SQLiteError::GetAuxWrongType).get_code());
 
-    assert_eq!(
-        2306,
-        Error::from(SQLiteError::UnwindingPanic)
-        .get_code()
-    );
+    assert_eq!(2306, Error::from(SQLiteError::UnwindingPanic).get_code());
 
     assert_eq!(
         1372169,
-        Error::from(SQLiteError::InvalidParameterCount(1,1)).get_code()
+        Error::from(SQLiteError::InvalidParameterCount(1, 1)).get_code()
     );
 }

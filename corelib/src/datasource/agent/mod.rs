@@ -50,13 +50,13 @@ fn run_command(cmd: &str) -> Result<String> {
 }
 
 /// 注册数据源
-pub fn register_ds<T: Configure>(_: &Instance, connection: &T) -> Result<()> {
+pub fn register_ds<T: Configure>(instance: &Instance, connection: &T) -> Result<()> {
     use crate::register_ds;
 
     connection.register_source(register_ds!(read_file))?;
     connection.register_source(register_ds!(mkdir))?;
     connection.register_source(register_ds!(write_file))?;
-    connection.register_source(register_ds!(shell))?;
+    connection.register_source(register_ds!(shell: instance.clone()))?;
     connection.register_source(register_ds!(filesystem))?;
     connection.register_source(register_ds!(host_basic))?;
     connection.register_source(register_ds!(cpu_usage))?;

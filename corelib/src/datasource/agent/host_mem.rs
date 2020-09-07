@@ -1,6 +1,6 @@
 use crate::{Columns, Promise, Result, Row, ToData};
-use heim::memory::{memory, Memory};
 use async_std::task::block_on;
+use heim::memory::{memory, Memory};
 
 #[derive(Data)]
 pub struct MemoryUsage {

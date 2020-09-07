@@ -25,7 +25,8 @@ fn test() {
             r#"
             echo Hello world
             > Hello world
-            "#.to_owned(),
+            "#
+            .to_owned(),
             10,
             &mut promise,
         ) {

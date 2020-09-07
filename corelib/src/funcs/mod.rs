@@ -1,4 +1,4 @@
-use crate::{Instance, Result, Configure};
+use crate::{Configure, Instance, Result};
 
 pub mod func_get;
 pub mod split_csv;

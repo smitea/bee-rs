@@ -1,11 +1,11 @@
 use crate::{Columns, Error, Promise, Row, ToData};
 
 use super::{format, run_command};
+use async_std::task::block_on;
 use heim::{
     host::{platform, uptime, Platform},
     memory::{memory, Memory},
 };
-use async_std::task::block_on;
 
 #[cfg(target_os = "windows")]
 const BRAND_CMD: &str = "WMIC CPU Get Name / Format:List 2>nul";

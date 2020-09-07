@@ -1,4 +1,5 @@
 use bee_core::Connection;
+
 #[cfg(test)]
 #[allow(dead_code)]
 pub fn init_log() {
@@ -99,6 +100,7 @@ fn assert_row(
     row_size: usize,
     timeout: std::time::Duration,
 ) {
+    async_std::task_local! {}
     let statement = session.new_statement(sql, timeout).unwrap();
     let resp = statement.wait().unwrap();
     let mut index = 0;

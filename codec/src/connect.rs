@@ -7,7 +7,7 @@ use std::io::Cursor;
 use tokio_util::codec::Decoder;
 use tokio_util::codec::Encoder;
 
-#[derive(Debug, Clone,Eq, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct ConnectionReq {
     pub url: String,
     pub application: String,
@@ -104,7 +104,7 @@ fn test_connection_req() {
         dist
     );
 
-    println!("{:x}",dist);
+    println!("{:x}", dist);
     let rs = codec.decode(&mut dist).unwrap().unwrap();
     assert_eq!(&rs.application, &req.application);
     assert_eq!(&rs.url, &req.url);

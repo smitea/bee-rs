@@ -1,6 +1,6 @@
 use crate::{Columns, Promise, Result, Row, ToData};
-use heim::memory::{swap, Swap};
 use async_std::task::block_on;
+use heim::memory::{swap, Swap};
 
 #[derive(Data)]
 pub struct SWAPUsage {

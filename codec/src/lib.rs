@@ -4,7 +4,7 @@ use bytes::BytesMut;
 use std::io::Read;
 use std::{convert::TryFrom, io::Cursor};
 
-pub use bee_core::{code,DataType, Error, Result, ToType, Value};
+pub use bee_core::{code, DataType, Error, Result, ToType, Value};
 pub use connect::{ConnectionReq, ConnectionReqCodec, ConnectionResp, ConnectionRespCodec};
 pub use statement::{
     StatementReq, StatementReqCodec, StatementResp, StatementRespCodec, StatementStateResp,

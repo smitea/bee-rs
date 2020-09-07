@@ -1,7 +1,7 @@
 use crate::{Columns, Error, Row};
 
 /// 数据管道中的状态位，用来确定数据管道中的类型
-#[derive(Debug, Clone,Eq, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub enum State {
     Ready(Columns),
     Process(Row),
@@ -98,7 +98,10 @@ fn test() {
     assert!(state.is_ok());
 
     let rs: crate::Result<State> = Result::Ok(State::Ready(crate::columns![String: "name"]));
-    assert_eq!(State::Ready(crate::columns![String: "name"]), State::from(rs));
+    assert_eq!(
+        State::Ready(crate::columns![String: "name"]),
+        State::from(rs)
+    );
 
     let rs: crate::Result<State> = Result::Err(Error::index_param("name"));
     let state = State::from(rs);

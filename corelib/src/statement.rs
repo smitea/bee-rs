@@ -1,6 +1,6 @@
 use crate::{Args, Columns, Error, Request, Row, State};
 use std::{
-    sync::mpsc::{Receiver, RecvTimeoutError, channel},
+    sync::mpsc::{channel, Receiver, RecvTimeoutError},
     time::Duration,
 };
 

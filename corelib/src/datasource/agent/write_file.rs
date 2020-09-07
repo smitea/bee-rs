@@ -18,8 +18,8 @@ pub fn write_file(path: String, content: String, promise: &mut Promise<Status>) 
 #[test]
 fn test() {
     use crate::*;
-    const PATH:&str = "/tmp/test_file.log";
-    const CONTENT:&str = "Hello world";
+    const PATH: &str = "/tmp/test_file.log";
+    const CONTENT: &str = "Hello world";
     let (req, resp) = crate::new_req(crate::Args::new(), std::time::Duration::from_secs(2));
     async_std::task::spawn_blocking(move || {
         let mut promise = req.head::<Status>().unwrap();
