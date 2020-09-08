@@ -1,6 +1,6 @@
 package com.enmotech.nirvana.bee.connector;
 
-class RemoteDatasource extends BeeDatasource {
+public class RemoteDatasource extends BeeDatasource {
     public RemoteDatasource(String host, int port) {
         super(host, port);
         setDataSourceMode("remote");

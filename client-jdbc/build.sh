@@ -74,6 +74,7 @@ fi
 
 info_log " ============================ start compile!!! ============================== "
 mvn clean dependency:sources install -Dmaven.test.skip=true
+mvn assembly:assembly -Dmaven.test.skip=true
 info_log " ============================ compile done!!! ============================== "
 
 if [[ ${DIST} == 1 ]]; then

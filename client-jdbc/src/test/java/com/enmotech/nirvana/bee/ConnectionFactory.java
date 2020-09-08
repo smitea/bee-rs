@@ -4,10 +4,8 @@ import com.enmotech.nirvana.bee.connector.AgentDatasource;
 import com.enmotech.nirvana.bee.connector.BeeDatasource;
 import com.enmotech.nirvana.bee.connector.RemoteDatasource;
 
-import javax.sql.DataSource;
 import java.sql.SQLException;
 import java.util.Map;
-import java.util.Properties;
 
 public class ConnectionFactory {
     final String ADDR = "127.0.0.1";

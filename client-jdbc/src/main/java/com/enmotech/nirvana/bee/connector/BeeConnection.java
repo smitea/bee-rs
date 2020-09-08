@@ -28,6 +28,8 @@ class BeeConnection implements Connection, Closeable {
     private final Transport transport;
     private final AtomicInteger id;
     private final ClientInfo clientInfo;
+    private boolean autocommit = false;
+    private String schema = "";
 
     public BeeConnection(ClientInfo clientInfo) throws BeeException {
         this.transport = createTransport(clientInfo);
@@ -120,38 +122,35 @@ class BeeConnection implements Connection, Closeable {
     }
 
     @Override
-    public DatabaseMetaData getMetaData() throws SQLException {
-        throw new NotSupportException();
+    public DatabaseMetaData getMetaData() {
+        return new BeeDatabaseMetaData(clientInfo);
     }
 
     @Override
-    public void setReadOnly(boolean readOnly) throws SQLException {
-        throw new NotSupportException();
+    public void setReadOnly(boolean readOnly) {
     }
 
     @Override
-    public boolean isReadOnly() throws SQLException {
-        throw new NotSupportException();
+    public boolean isReadOnly() {
+        return true;
     }
 
     @Override
-    public void setCatalog(String catalog) throws SQLException {
-        throw new NotSupportException();
+    public void setCatalog(String catalog) {
     }
 
     @Override
-    public String getCatalog() throws SQLException {
-        throw new NotSupportException();
+    public String getCatalog() {
+        return "";
     }
 
     @Override
-    public void setTransactionIsolation(int level) throws SQLException {
-        throw new NotSupportException();
+    public void setTransactionIsolation(int level) {
     }
 
     @Override
-    public int getTransactionIsolation() throws SQLException {
-        throw new NotSupportException();
+    public int getTransactionIsolation() {
+        return Connection.TRANSACTION_NONE;
     }
 
     @Override
@@ -187,17 +186,15 @@ class BeeConnection implements Connection, Closeable {
 
     @Override
     public void setTypeMap(Map<String, Class<?>> map) throws SQLException {
-        throw new NotSupportException();
     }
 
     @Override
     public void setHoldability(int holdability) throws SQLException {
-        throw new NotSupportException();
     }
 
     @Override
     public int getHoldability() throws SQLException {
-        throw new NotSupportException();
+        return 0;
     }
 
     @Override
@@ -279,14 +276,14 @@ class BeeConnection implements Connection, Closeable {
     }
 
     @Override
-    public void setClientInfo(String name, String value) throws SQLClientInfoException {
+    public void setClientInfo(String name, String value) {
         clientInfo.getProperties().setProperty(name, value);
     }
 
     @Override
-    public void setClientInfo(Properties properties) throws SQLClientInfoException {
+    public void setClientInfo(Properties properties) {
         Properties old = this.clientInfo.getProperties();
-        properties.keySet().stream().forEach(key -> {
+        properties.keySet().forEach(key -> {
             String keyStr = (String) key;
             String value = properties.getProperty(keyStr);
             old.setProperty(keyStr, value);
@@ -294,12 +291,12 @@ class BeeConnection implements Connection, Closeable {
     }
 
     @Override
-    public String getClientInfo(String name) throws SQLException {
+    public String getClientInfo(String name) {
         return clientInfo.getProperties().getProperty(name);
     }
 
     @Override
-    public Properties getClientInfo() throws SQLException {
+    public Properties getClientInfo() {
         return clientInfo.getProperties();
     }
 
@@ -314,28 +311,26 @@ class BeeConnection implements Connection, Closeable {
     }
 
     @Override
-    public void setSchema(String schema) throws SQLException {
-        throw new NotSupportException();
+    public void setSchema(String schema) {
     }
 
     @Override
-    public String getSchema() throws SQLException {
-        throw new NotSupportException();
+    public String getSchema() {
+        return clientInfo.getResource();
     }
 
     @Override
-    public void abort(Executor executor) throws SQLException {
-        throw new NotSupportException();
+    public void abort(Executor executor) {
     }
 
     @Override
-    public void setNetworkTimeout(Executor executor, int milliseconds) throws SQLException {
-        throw new NotSupportException();
+    public void setNetworkTimeout(Executor executor, int milliseconds) {
+        clientInfo.setSocketTimeout(milliseconds / 1000);
     }
 
     @Override
-    public int getNetworkTimeout() throws SQLException {
-        throw new NotSupportException();
+    public int getNetworkTimeout() {
+        return clientInfo.getSocketTimeout();
     }
 
     @Override

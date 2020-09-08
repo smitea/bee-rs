@@ -13,9 +13,9 @@ public abstract class BeeDatasource implements DataSource {
     private String username;
     private String password;
 
-    private int loginTimeout;
-    private int socketTimeout;
-    private int connectTimeout;
+    private int loginTimeout = 5;
+    private int socketTimeout = 5;
+    private int connectTimeout = 5;
 
     private String connectionMode = "default";
     private String dataSourceMode = "agent";
@@ -61,12 +61,12 @@ public abstract class BeeDatasource implements DataSource {
 
     @Override
     public void setLogWriter(PrintWriter out) throws SQLException {
-
+        throw new NotSupportException();
     }
 
     @Override
     public Logger getParentLogger() throws SQLFeatureNotSupportedException {
-        return null;
+        throw new SQLFeatureNotSupportedException();
     }
 
     @Override
@@ -129,6 +129,7 @@ public abstract class BeeDatasource implements DataSource {
     }
 
     public void setConnectTimeout(int connectTimeout) {
+        clientInfo.properties.setProperty(ClientInfo.CONNECTION_TIMEOUT, ""+connectTimeout);
         this.connectTimeout = connectTimeout;
     }
 
