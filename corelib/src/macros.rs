@@ -6,12 +6,12 @@ macro_rules! register_ds {
             Box::new($namespace::DataSourceImpl::new())
         }
     };
-    ($namespace: ident : $($inst: expr),*) => {
+    ($namespace: ident : $($state: expr),*) => {
         {
             use crate::datasource::DataSource;
             let ds = Box::new($namespace::DataSourceImpl::new());
             $(
-                $crate::register_state!(ds,std::sync::Arc::new($inst));
+                $crate::register_state!(ds,$state.clone());
             )*
             ds
         }

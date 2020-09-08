@@ -40,7 +40,7 @@ pub fn new_session(instance: &Instance) -> Result<Arc<Session>> {
     sess.set_username(&username)?;
     sess.connect()?;
 
-    if ServerKnown::NotKnown != sess.is_server_known()?{
+    if ServerKnown::NotKnown != sess.is_server_known()? {
         sess.write_knownhost()?;
     }
 
@@ -61,11 +61,12 @@ pub fn new_session(instance: &Instance) -> Result<Arc<Session>> {
 pub fn register_ds<T: Configure>(instance: &Instance, connection: &T) -> Result<()> {
     use crate::register_ds;
     let session = new_session(instance)?;
+    let instance = Arc::new(instance.clone());
 
-    connection.register_source(register_ds!(read_file : instance.clone(), session.clone()))?;
-    connection.register_source(register_ds!(write_file : instance.clone(), session.clone()))?;
-    connection.register_source(register_ds!(mkdir : instance.clone(), session.clone()))?;
-    connection.register_source(register_ds!(shell : instance.clone(), session.clone()))?;
+    connection.register_source(register_ds!(read_file: instance, session))?;
+    connection.register_source(register_ds!(write_file: instance, session))?;
+    connection.register_source(register_ds!(mkdir: instance, session))?;
+    connection.register_source(register_ds!(shell: instance, session))?;
     Ok(())
 }
 
