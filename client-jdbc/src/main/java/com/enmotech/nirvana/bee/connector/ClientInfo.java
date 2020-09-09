@@ -5,6 +5,7 @@ import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URL;
 import java.net.UnknownHostException;
+import java.sql.DriverPropertyInfo;
 import java.sql.SQLException;
 import java.util.Properties;
 import java.util.Set;
@@ -29,6 +30,18 @@ class ClientInfo {
     static String OS_VERSION = "os_version";
     static String ENVIRONMENTS = "environments";
     static String URL_PATTERN = "(\\S+):(\\S+):(\\S+://\\S+)";
+    static final Properties DEFAULT_PROPERTIES;
+
+    static {
+        DEFAULT_PROPERTIES = new Properties();
+        DEFAULT_PROPERTIES.setProperty(ClientInfo.CONNECTION_TIMEOUT, "10");
+        DEFAULT_PROPERTIES.setProperty(ClientInfo.BEE_HOST, "127.0.0.1");
+        DEFAULT_PROPERTIES.setProperty(ClientInfo.BEE_PORT, "6142");
+        DEFAULT_PROPERTIES.setProperty(ClientInfo.SOCKET_TIMEOUT, "20");
+        DEFAULT_PROPERTIES.setProperty(ClientInfo.APPLICATION, "jdbc");
+        DEFAULT_PROPERTIES.setProperty(ClientInfo.OS_VERSION, "Unknown");
+        DEFAULT_PROPERTIES.setProperty(ClientInfo.ENVIRONMENTS, "[BETHUNE_PATH: bee]");
+    }
 
     private final String beeHost;
     private final int beePort;
@@ -42,13 +55,13 @@ class ClientInfo {
     public ClientInfo(String beeHost, int beePort) {
         this.beeHost = beeHost;
         this.beePort = beePort;
-        this.properties = new Properties();
+        this.properties = DEFAULT_PROPERTIES;
         this.environments = new Properties();
         initApplication();
     }
 
     public ClientInfo(String url, Properties properties) throws SQLException {
-        this.properties = properties;
+        this.properties = properties.isEmpty() ? DEFAULT_PROPERTIES : properties;
         this.environments = new Properties();
 
         Pattern pattern = Pattern.compile(URL_PATTERN);
@@ -206,11 +219,11 @@ class ClientInfo {
     }
 
     public String getUsername() {
-        return properties.getProperty(USERNAME,"");
+        return properties.getProperty(USERNAME, "");
     }
 
     public String getResource() {
-        return properties.getProperty(CONNECTION_RESOURCE,"");
+        return properties.getProperty(CONNECTION_RESOURCE, "");
     }
 
     public String getApplication() {

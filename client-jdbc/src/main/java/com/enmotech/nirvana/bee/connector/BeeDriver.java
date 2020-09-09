@@ -5,6 +5,7 @@ import java.sql.Driver;
 import java.sql.DriverPropertyInfo;
 import java.sql.SQLException;
 import java.sql.SQLFeatureNotSupportedException;
+import java.util.Enumeration;
 import java.util.Properties;
 import java.util.logging.Logger;
 
@@ -12,6 +13,7 @@ public class BeeDriver implements Driver {
     @Override
     public Connection connect(String url, Properties info) throws SQLException {
         ClientInfo clientInfo = new ClientInfo(url, info);
+        getParentLogger().info("connect url :" + url);
         return new BeeConnection(clientInfo);
     }
 
@@ -27,15 +29,15 @@ public class BeeDriver implements Driver {
 
     @Override
     public DriverPropertyInfo[] getPropertyInfo(String url, Properties info) throws SQLException {
-        return new DriverPropertyInfo[]{
-                new DriverPropertyInfo(ClientInfo.CONNECTION_TIMEOUT, "10"),
-                new DriverPropertyInfo(ClientInfo.BEE_HOST, "127.0.0.1"),
-                new DriverPropertyInfo(ClientInfo.BEE_PORT, "6142"),
-                new DriverPropertyInfo(ClientInfo.SOCKET_TIMEOUT, "20"),
-                new DriverPropertyInfo(ClientInfo.APPLICATION, "jdbc"),
-                new DriverPropertyInfo(ClientInfo.OS_VERSION, ""),
-                new DriverPropertyInfo(ClientInfo.ENVIRONMENTS, "[BETHUNE_PATH: bee]")
-        };
+        int size = ClientInfo.DEFAULT_PROPERTIES.size();
+        Enumeration<Object> keys = ClientInfo.DEFAULT_PROPERTIES.keys();
+        DriverPropertyInfo[] infos = new DriverPropertyInfo[size];
+        for (int i = 0; i < size; i++) {
+            String key = (String) keys.nextElement();
+            String value = ClientInfo.DEFAULT_PROPERTIES.getProperty(key);
+            infos[i] = new DriverPropertyInfo(key, value);
+        }
+        return infos;
     }
 
     @Override

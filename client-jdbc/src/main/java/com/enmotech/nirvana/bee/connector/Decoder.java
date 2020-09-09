@@ -4,7 +4,7 @@ import io.netty.buffer.ByteBuf;
 
 import java.io.ByteArrayInputStream;
 
-interface Decoder extends Protocol {
+public interface Decoder extends Protocol {
     void decode(ByteBuf packet) throws Exception;
 
     default String read256String(ByteBuf packet) throws Exception {

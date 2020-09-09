@@ -30,7 +30,7 @@ import java.util.concurrent.atomic.AtomicReference;
 /**
  * 数据传输器
  */
-class Transport implements Closeable {
+public class Transport implements Closeable {
     private final Queue<PacketHandler> packetQueue = new LinkedBlockingQueue<>();
     private final AtomicBoolean isClosed;
     private final CountDownLatch connectLatch;
