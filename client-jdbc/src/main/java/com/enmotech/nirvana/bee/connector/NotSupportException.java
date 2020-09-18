@@ -1,4 +1,4 @@
-package com.enmotech.nirvana.bee.connector.codec;
+package com.enmotech.nirvana.bee.connector;
 
 import java.sql.SQLException;
 

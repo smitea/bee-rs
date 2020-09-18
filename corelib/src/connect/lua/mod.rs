@@ -66,7 +66,7 @@ impl Connection for LuaSession {
         let lua = Lua::new_with(
             StdLib::BASE | StdLib::STRING | StdLib::UTF8 | StdLib::MATH | StdLib::TABLE,
         );
-        let _ = async_std::task::spawn(async move {
+        let _ = std::thread::spawn(move || {
             if let Err(err) = run_lua_script(lua, &mut request, script, ds_list, func_list) {
                 let _ = request.error(err);
             } else {
@@ -113,7 +113,7 @@ fn register_context(
         let function = context.create_function(move |_, args: Args| {
             let ds = ds.clone();
             let (mut request, statement) = new_req_none(args);
-            let _ = async_std::task::spawn_blocking(move || {
+            let _ = std::thread::spawn(move || {
                 if let Err(err) = ds.collect(&mut request) {
                     let _ = request.error(err);
                 } else {

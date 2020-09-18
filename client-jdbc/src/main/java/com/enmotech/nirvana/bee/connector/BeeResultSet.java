@@ -1,9 +1,5 @@
 package com.enmotech.nirvana.bee.connector;
 
-import com.enmotech.nirvana.bee.connector.codec.BeeException;
-import com.enmotech.nirvana.bee.connector.codec.Bytes;
-import com.enmotech.nirvana.bee.connector.codec.NotSupportException;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.Reader;
@@ -28,7 +24,7 @@ import java.sql.Timestamp;
 import java.util.Calendar;
 import java.util.Map;
 
-public class BeeResultSet implements ResultSet {
+class BeeResultSet implements ResultSet {
     private final BeeStatement statement;
     private final Response response;
     private ResultRow row;

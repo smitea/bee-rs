@@ -1,44 +1,20 @@
 package com.enmotech.nirvana.bee.connector;
 
-import com.enmotech.nirvana.bee.connector.codec.BeeException;
+import com.enmotech.nirvana.bee.ConnectionFactory;
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThrows;
 
 import java.sql.SQLException;
-import java.util.Properties;
 
-public class ConnectorTest extends ConnectorUrl {
-
-    private ClientInfo createClientInfoForConnectionRefused() {
-        ClientInfo info = createClientRemoteInfo();
-        info.getProperties().setProperty(ClientInfo.CONNECTION_PORT, "21");
-        return info;
-    }
-
-    private ClientInfo createClientInfoForConnectionTimeout() {
-        ClientInfo info = createClientRemoteInfo();
-        info.getProperties().setProperty(ClientInfo.CONNECTION_HOST, "127.0.0.2");
-        return info;
-    }
-
-    private ClientInfo createClientInfoForConnectionAuthUserFailed() {
-        ClientInfo info = createClientRemoteInfo();
-        info.getProperties().setProperty(ClientInfo.USERNAME, "oracle1");
-        return info;
-    }
-
-    private ClientInfo createClientInfoForConnectionAuthPWDFailed() {
-        ClientInfo info = createClientRemoteInfo();
-        info.getProperties().setProperty(ClientInfo.PASSWORD, "admincs");
-        return info;
-    }
-
+public class ConnectorTest extends ConnectionFactory {
     @Test
     public void connectionRefused() throws SQLException {
         BeeException e = assertThrows(BeeException.class, () -> {
-            new BeeConnection(createClientInfoForConnectionRefused());
+            RemoteDatasource datasource = createRemoteDatasource(BeeDatasource.SessionMode.SQLITE);
+            datasource.connectionProxy("127.0.0.1", 21);
+            datasource.getConnection();
         });
         assertEquals(192009, e.getCode());
     }
@@ -46,7 +22,9 @@ public class ConnectorTest extends ConnectorUrl {
     @Test
     public void connectionTimeout() throws SQLException {
         BeeException e = assertThrows(BeeException.class, () -> {
-            new BeeConnection(createClientInfoForConnectionTimeout());
+            RemoteDatasource datasource = createRemoteDatasource(BeeDatasource.SessionMode.SQLITE);
+            datasource.connectionProxy("127.0.0.2", 22);
+            datasource.getConnection();
         });
         assertEquals(192009, e.getCode());
     }
@@ -54,15 +32,19 @@ public class ConnectorTest extends ConnectorUrl {
     @Test
     public void connectionAuthUserUserFailed() throws SQLException {
         BeeException e = assertThrows(BeeException.class, () -> {
-            new BeeConnection(createClientInfoForConnectionAuthUserFailed());
+            RemoteDatasource datasource = createRemoteDatasource(BeeDatasource.SessionMode.SQLITE);
+            datasource.authPublicKey("sssss");
+            datasource.getConnection();
         });
-        assertEquals(126473, e.getCode());
+        assertEquals(60937, e.getCode());
     }
 
     @Test
     public void connectionAuthPWDFailed() throws SQLException {
         BeeException e = assertThrows(BeeException.class, () -> {
-            new BeeConnection(createClientInfoForConnectionAuthPWDFailed());
+            RemoteDatasource datasource = createRemoteDatasource(BeeDatasource.SessionMode.SQLITE);
+            datasource.authPassword(System.getProperty("user.name"), "ssss");
+            datasource.getConnection();
         });
         assertEquals(126473, e.getCode());
     }

@@ -1,4 +1,4 @@
-package com.enmotech.nirvana.bee.connector.promise;
+package com.enmotech.nirvana.bee.connector;
 
 import java.util.concurrent.TimeUnit;
 

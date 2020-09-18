@@ -5,7 +5,6 @@ mod to_data;
 mod to_ds;
 mod to_function;
 
-
 #[cfg(not(tarpaulin_include))]
 #[proc_macro_attribute]
 pub fn function(args: TokenStream, input: TokenStream) -> TokenStream {

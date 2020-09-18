@@ -1,7 +1,5 @@
 package com.enmotech.nirvana.bee.connector;
 
-import com.enmotech.nirvana.bee.connector.codec.Bytes;
-
 /**
  * Bee 值类型
  */

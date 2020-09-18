@@ -84,7 +84,7 @@ impl crate::Connection for SqliteSession {
         let conn = self.connection.clone();
 
         let script = script.to_string();
-        let _ = async_std::task::spawn(async move {
+        let _ = std::thread::spawn(move || {
             let req = request;
             if let Err(err) = commit_statement(conn, script, &req) {
                 let _ = req.error(err);
@@ -190,7 +190,7 @@ pub fn init_log() {
 #[test]
 fn test_sqlite_sql() {
     init_log();
-    
+
     let lua_script = r#"
         SELECT * FROM filesystem() WHERE name NOT LIKE '%tmp%'
         "#;

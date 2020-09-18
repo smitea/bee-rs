@@ -1,14 +1,10 @@
-package com.enmotech.nirvana.bee.connector.codec;
+package com.enmotech.nirvana.bee.connector;
 
-import com.enmotech.nirvana.bee.connector.DataType;
 import io.netty.buffer.ByteBuf;
 
-import java.io.ByteArrayInputStream;
-import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
-import java.util.concurrent.Delayed;
 
-public interface Encoder extends Protocol {
+interface Encoder extends Protocol {
     ByteBuf encode() throws Exception;
 
     boolean valid(ByteBuf byteBuf);

@@ -2,7 +2,7 @@ mod common;
 #[cfg(test)]
 #[cfg(feature = "agent")]
 #[cfg(feature = "lua")]
-mod test {
+mod lua_test {
     use crate::common::*;
     use std::time::Duration;
     #[test]

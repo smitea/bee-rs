@@ -1,8 +1,8 @@
-package com.enmotech.nirvana.bee.connector.codec;
+package com.enmotech.nirvana.bee.connector;
 
 import io.netty.buffer.ByteBuf;
 
-public class PingResp implements Decoder{
+class PingResp implements Decoder{
 
     @Override
     public int type() {

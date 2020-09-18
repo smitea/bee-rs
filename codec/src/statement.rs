@@ -280,7 +280,11 @@ mod test {
         let mut dist = BytesMut::new();
         codec.encode(resp.clone(), &mut dist).unwrap();
         info!("{:x}", dist);
-        assert_eq!(b"\x00\x00\x00\x01\x03\x00\x00\x00\x12\x0A\x66\x61\x69\x6C\x65\x64\x20\x74\x6F\x21".to_vec(), dist);
+        assert_eq!(
+            b"\x00\x00\x00\x01\x03\x00\x00\x00\x12\x0A\x66\x61\x69\x6C\x65\x64\x20\x74\x6F\x21"
+                .to_vec(),
+            dist
+        );
         let rs = codec.decode(&mut dist).unwrap().unwrap();
         assert_eq!(rs, resp);
 

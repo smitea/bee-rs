@@ -1,12 +1,6 @@
-package com.enmotech.nirvana.bee.connector.codec;
+package com.enmotech.nirvana.bee.connector;
 
-import com.enmotech.nirvana.bee.connector.ColumnInfo;
-import com.enmotech.nirvana.bee.connector.DataType;
-import com.enmotech.nirvana.bee.connector.Response;
-import com.enmotech.nirvana.bee.connector.ResultRow;
-import com.enmotech.nirvana.bee.connector.Value;
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.Unpooled;
 
 import java.nio.charset.Charset;
 import java.util.concurrent.ArrayBlockingQueue;
@@ -18,7 +12,7 @@ import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
-public class StatementResp implements Decoder, Response {
+class StatementResp implements Decoder, Response {
     private Long id;
 
     private ColumnInfo[] header = null;

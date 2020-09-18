@@ -2,7 +2,7 @@ mod common;
 #[cfg(test)]
 #[cfg(feature = "agent")]
 #[cfg(feature = "sqlite")]
-mod test {
+mod sql_test {
     use crate::common::*;
     use bee_core::*;
     use std::time::Duration;

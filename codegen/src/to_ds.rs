@@ -156,7 +156,7 @@ fn match_call_args(
 ) -> proc_macro2::TokenStream {
     let mut args_body = vec![];
     let mut index = 0_usize;
-    for (type_,_,typed) in args.iter(){
+    for (type_, _, typed) in args.iter() {
         let type_str = quote! {#typed}.to_string();
         let body = if type_str.contains("Arc") {
             quote_spanned! {typed.span()=>

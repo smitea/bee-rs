@@ -6,16 +6,24 @@ macro_rules! register_ds {
             Box::new($namespace::DataSourceImpl::new())
         }
     };
+    ($namespace: ident : $($state: expr),*) => {
+        {
+            use crate::datasource::DataSource;
+            let ds = Box::new($namespace::DataSourceImpl::new());
+            $(
+                $crate::register_state!(ds,$state.clone());
+            )*
+            ds
+        }
+    };
 }
 
 /// 注册一个实例到容器中
 #[macro_export]
 macro_rules! register_state {
-    ($ds: expr, $state: expr) => {
-        {
-            $ds.get_register().set_state($state);
-        }
-    };
+    ($ds: expr, $state: expr) => {{
+        $ds.get_register().set_state($state);
+    }};
 }
 
 /// 创建一行结果集

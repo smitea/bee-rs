@@ -1,10 +1,6 @@
 package com.enmotech.nirvana.bee.connector;
 
-import com.enmotech.nirvana.bee.connector.codec.Bytes;
-
-import java.sql.ResultSet;
-
-public class ResultRow {
+class ResultRow {
     private final ColumnInfo[] header;
     private final Value[] values;
 

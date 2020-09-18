@@ -1,9 +1,8 @@
-package com.enmotech.nirvana.bee.connector.codec;
+package com.enmotech.nirvana.bee.connector;
 
-import com.enmotech.nirvana.bee.connector.promise.Promise;
 import io.netty.buffer.ByteBuf;
 
-public class PromisePacketHandler<T extends Decoder, Encode extends Encoder> implements PacketHandler {
+class PromisePacketHandler<T extends Decoder, Encode extends Encoder> implements PacketHandler {
     private Promise<T> promise;
     private T decoder;
     private Encode encoder;

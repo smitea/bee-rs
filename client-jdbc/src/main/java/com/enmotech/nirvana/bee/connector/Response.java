@@ -1,10 +1,6 @@
 package com.enmotech.nirvana.bee.connector;
 
-import com.enmotech.nirvana.bee.connector.codec.BeeException;
-
-import java.sql.ResultSet;
-
-public interface Response {
+interface Response {
     ColumnInfo[] getColumns() throws BeeException;
 
     ResultRow next() throws BeeException;

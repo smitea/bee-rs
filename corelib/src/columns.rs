@@ -2,7 +2,7 @@ use crate::DataType;
 use std::ops::Deref;
 
 /// 数据列结构定义
-#[derive(Debug, Clone,Eq, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct Columns {
     pub(crate) values: Vec<(String, DataType)>,
 }
@@ -78,11 +78,11 @@ fn test() {
     let mut columns = crate::Columns::new();
     columns.push("name", DataType::String);
 
-    assert_eq!(Option::Some(&"name".to_owned()),columns.get_name(0));
-    assert_eq!(Option::None,columns.get_name(1));
+    assert_eq!(Option::Some(&"name".to_owned()), columns.get_name(0));
+    assert_eq!(Option::None, columns.get_name(1));
 
-    assert_eq!(Option::Some(0),columns.get_index("name"));
-    assert_eq!(Option::None,columns.get_index("age"));
+    assert_eq!(Option::Some(0), columns.get_index("name"));
+    assert_eq!(Option::None, columns.get_index("age"));
 
     assert!(columns.iter().len() > 0);
 }

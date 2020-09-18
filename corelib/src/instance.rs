@@ -14,6 +14,7 @@ pub struct Instance {
     username: Option<String>,
     password: Option<String>,
     params: HashMap<String, Value>,
+    pub environments: HashMap<String, String>,
 }
 
 impl Instance {
@@ -26,6 +27,7 @@ impl Instance {
 
         let mut connect_mode = "default".to_owned();
         let mut params: HashMap<String, Value> = HashMap::new();
+        let mut environments: HashMap<String, String> = HashMap::new();
         let mut username = Option::None;
         let mut password = Option::None;
         let mut host = Option::None;
@@ -48,23 +50,56 @@ impl Instance {
                 let query = url.query();
 
                 params = if let Some(param_str) = query {
+                    let param_str = percent_encoding::percent_decode_str(param_str)
+                        .decode_utf8_lossy()
+                        .to_string();
                     let mut params: HashMap<String, Value> = HashMap::new();
                     let values: Vec<&str> = param_str.split("&").collect();
                     for value in values {
                         let value_str: Vec<&str> = value.split("=").collect();
-                        let key = value_str.get(0).ok_or(Error::invalid_type(format!(
-                            "failed to get params form {}",
-                            url
-                        )))?;
+                        let key = value_str
+                            .get(0)
+                            .ok_or(Error::invalid_type(format!(
+                                "failed to get params form {}",
+                                url
+                            )))?
+                            .to_string();
                         let value = value_str.get(1);
-
-                        let value = if let Some(val) = value {
-                            val.parse::<Value>()?
+                        if key == "environments" {
+                            if let Some(val) = value {
+                                let env_str = val.replace("[", "").replace("]", "");
+                                if !env_str.trim().is_empty() {
+                                    let key_value: Vec<&str> = env_str.split(",").collect();
+                                    for item in key_value {
+                                        let item_val: Vec<&str> = item.split(":").collect();
+                                        let key = item_val
+                                            .get(0)
+                                            .ok_or(Error::invalid_type(format!(
+                                                "failed to get params form {}",
+                                                url
+                                            )))?
+                                            .to_string();
+                                        let val = item_val
+                                            .get(1)
+                                            .ok_or(Error::invalid_type(format!(
+                                                "failed to get params form {}",
+                                                url
+                                            )))?
+                                            .to_string();
+                                        let key = key.trim().to_string();
+                                        let val = val.trim().to_string();
+                                        environments.insert(key, val);
+                                    }
+                                }
+                            }
                         } else {
-                            Value::Nil
-                        };
-
-                        let _ = params.insert(key.to_string(), value);
+                            let value = if let Some(val) = value {
+                                val.parse::<Value>()?
+                            } else {
+                                Value::Nil
+                            };
+                            let _ = params.insert(key, value);
+                        }
                     }
 
                     params
@@ -86,6 +121,7 @@ impl Instance {
             username,
             password,
             params,
+            environments,
         })
     }
 
@@ -152,6 +188,13 @@ impl Instance {
             .map(|val| T::try_from(val.clone()))
             .ok_or(Error::index_param(name))?
     }
+
+    /// 获取环境变量
+    pub fn get_env(&self, name: &str) -> Option<String> {
+        self.environments
+            .get(&name.to_string())
+            .map(|val| val.to_string())
+    }
 }
 
 impl FromStr for Instance {
@@ -164,7 +207,7 @@ impl FromStr for Instance {
 #[test]
 fn test() {
     let instance = Instance::from(
-        "sqlite:remote:password://bp_test:jQ7@MfUXv4NMzNRk!&@127.0.0.1:22/bee?connect_timeout=5",
+        "sqlite:remote:password://bp_test:jQ7@MfUXv4NMzNRk!&@127.0.0.1:22/bee?connect_timeout=5&environments=[ORACLE_HOME: /app/u01/12c, ORACLE_SID: XE]",
     )
     .unwrap();
 
@@ -179,6 +222,7 @@ fn test() {
 
     let timeout: i32 = instance.get_param("connect_timeout").unwrap();
     assert_eq!(5_i32, timeout);
+    assert_eq!(Some("XE".to_string()), instance.get_env("ORACLE_SID"));
 
     let instance = Instance::from("sqlite:agent:default").unwrap();
 

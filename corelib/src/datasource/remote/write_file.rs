@@ -23,7 +23,7 @@ pub fn write_file(
 #[test]
 fn test() {
     use crate::*;
-    let session = super::new_test_sess().unwrap();
+    let (session, _) = super::new_test_sess().unwrap();
     let (req, resp) = crate::new_req(crate::Args::new(), std::time::Duration::from_secs(2));
     async_std::task::spawn_blocking(move || {
         let mut promise = req.head::<Status>().unwrap();

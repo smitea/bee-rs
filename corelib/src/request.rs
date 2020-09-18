@@ -96,8 +96,8 @@ impl Request {
         Ok(())
     }
 
-     /// 发送结束信息
-     pub fn ok(&self) -> Result<()> {
+    /// 发送结束信息
+    pub fn ok(&self) -> Result<()> {
         self.tx.send(State::Ok)?;
         Ok(())
     }

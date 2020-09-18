@@ -191,14 +191,15 @@ fn get_arg_uri() -> SocketAddr {
     let args: Vec<String> = env::args().collect();
     let url: String = args
         .get(1)
-        .map(|val|val.to_string())
+        .map(|val| val.to_string())
         .map(|val| {
-            if val.trim().is_empty(){
+            if val.trim().is_empty() {
                 LOCAL_ADDR.to_owned()
-            }else{
+            } else {
                 val
             }
-        }).unwrap_or(LOCAL_ADDR.to_owned());
+        })
+        .unwrap_or(LOCAL_ADDR.to_owned());
     return url.parse().unwrap();
 }
 

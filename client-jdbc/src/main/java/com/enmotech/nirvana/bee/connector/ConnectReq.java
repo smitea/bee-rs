@@ -1,9 +1,9 @@
-package com.enmotech.nirvana.bee.connector.codec;
+package com.enmotech.nirvana.bee.connector;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 
-public class ConnectReq implements Encoder {
+class ConnectReq implements Encoder {
     private final String url;
     private final String application;
     private final ConnectResp resp = new ConnectResp();

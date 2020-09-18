@@ -1,10 +1,10 @@
-use crate::{code, configure::Configure, register_state, DataSource, Error, Instance, Result};
-use ssh::Session;
+use crate::{code, configure::Configure, Error, Instance, Result};
+use ssh::{ServerKnown, Session};
 use std::sync::Arc;
 
-mod shell;
 mod mkdir;
 mod read_file;
+mod shell;
 mod write_file;
 
 const BASE_CODE: i32 = 83 + 83 + 72;
@@ -39,6 +39,11 @@ pub fn new_session(instance: &Instance) -> Result<Arc<Session>> {
     sess.set_timeout(connect_timeout as usize)?;
     sess.set_username(&username)?;
     sess.connect()?;
+
+    if ServerKnown::NotKnown != sess.is_server_known()? {
+        sess.write_knownhost()?;
+    }
+
     if protocol == "password" {
         let password = instance
             .get_password()
@@ -55,33 +60,22 @@ pub fn new_session(instance: &Instance) -> Result<Arc<Session>> {
 
 pub fn register_ds<T: Configure>(instance: &Instance, connection: &T) -> Result<()> {
     use crate::register_ds;
-
     let session = new_session(instance)?;
+    let instance = Arc::new(instance.clone());
 
-    let ds = register_ds!(read_file);
-    register_state!(ds, session.clone());
-    connection.register_source(ds)?;
-
-    let ds = register_ds!(write_file);
-    register_state!(ds, session.clone());
-    connection.register_source(ds)?;
-
-    let ds = register_ds!(mkdir);
-    register_state!(ds, session.clone());
-    connection.register_source(ds)?;
-
-    let ds = register_ds!(shell);
-    register_state!(ds, session.clone());
-    connection.register_source(ds)?;
+    connection.register_source(register_ds!(read_file: instance, session))?;
+    connection.register_source(register_ds!(write_file: instance, session))?;
+    connection.register_source(register_ds!(mkdir: instance, session))?;
+    connection.register_source(register_ds!(shell: instance, session))?;
     Ok(())
 }
 
 #[cfg(test)]
 #[cfg(feature = "sqlite")]
-fn new_test_sess()  -> Result<Arc<Session>>{
+fn new_test_sess() -> Result<(Arc<Session>, std::sync::Arc<Instance>)> {
     let uri = get_remote_uri();
-    let instance: Instance = format!("sqlite:{}",uri).parse()?;
-    new_session(&instance)
+    let instance: Instance = format!("sqlite:{}", uri).parse()?;
+    return Ok((new_session(&instance)?, std::sync::Arc::new(instance)));
 }
 
 #[cfg(test)]
@@ -90,5 +84,8 @@ pub fn get_remote_uri() -> String {
         .map(|s| s.parse().unwrap())
         .unwrap_or(22);
     let user = std::env::var("USER").unwrap();
-    return format!("remote:pubkey://{}@127.0.0.1:{}/bee?connect_timeout=5",user,port);
+    return format!(
+        "remote:pubkey://{}@127.0.0.1:{}/bee?connect_timeout=5&environments=[ORACLE_HOME : /app/u01/12c, ORACLE_SID: XE]",
+        user, port
+    );
 }
